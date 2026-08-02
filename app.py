@@ -1,116 +1,74 @@
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill
-
-# ==========================================
-# Input and Output Files
-# ==========================================
-INPUT_FILE = "Annual_Budget.xlsx"      # Your source data
-OUTPUT_FILE = "Annual_Budget_Dashboard.xlsx"
-
-# ==========================================
-# Read Data
-# ==========================================
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
-st.title("Annual Budget Dashboard")
+st.set_page_config(
+    page_title="Annual Budget Dashboard",
+    page_icon="💰",
+    layout="wide"
+)
+
+st.title("💰 Annual Budget Dashboard")
 
 uploaded_file = st.file_uploader(
-    "Upload your Annual Budget Excel file",
+    "Upload your Annual Budget Excel",
     type=["xlsx"]
 )
 
 if uploaded_file is None:
-    st.info("Please upload an Excel file to continue.")
+    st.info("Upload your Excel file to continue.")
     st.stop()
 
-df = pd.read_excel(uploaded_file)
+# Read the first sheet
+df = pd.read_excel(uploaded_file, sheet_name=0)
 
-# Ensure Date column is datetime
-df["Date"] = pd.to_datetime(df["Date"])
+st.subheader("Budget Data")
+st.dataframe(df, use_container_width=True)
 
-# Extract Month
-df["Month"] = df["Date"].dt.strftime("%b")
+# Detect numeric columns
+numeric_cols = df.select_dtypes(include="number").columns.tolist()
 
-# ==========================================
-# Summary Calculations
-# ==========================================
-total_budget = df["Budget"].sum()
-total_actual = df["Actual"].sum()
-remaining = total_budget - total_actual
+if len(numeric_cols) >= 2:
 
-utilization = (
-    (total_actual / total_budget) * 100
-    if total_budget > 0 else 0
-)
+    budget_col = numeric_cols[0]
+    actual_col = numeric_cols[1]
 
-# ==========================================
-# Monthly Summary
-# ==========================================
-monthly = (
-    df.groupby("Month")[["Budget", "Actual"]]
-      .sum()
-      .reindex(
-          ["Jan","Feb","Mar","Apr","May","Jun",
-           "Jul","Aug","Sep","Oct","Nov","Dec"]
-      )
-      .fillna(0)
-)
+    total_budget = df[budget_col].sum()
+    total_actual = df[actual_col].sum()
+    balance = total_budget - total_actual
 
-# ==========================================
-# Category Summary
-# ==========================================
-category = (
-    df.groupby("Category")[["Budget", "Actual"]]
-      .sum()
-      .sort_values("Actual", ascending=False)
-)
+    c1, c2, c3 = st.columns(3)
 
-# ==========================================
-# Write Excel
-# ==========================================
-with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
+    c1.metric("Total Budget", f"₹{total_budget:,.0f}")
+    c2.metric("Total Spent", f"₹{total_actual:,.0f}")
+    c3.metric("Remaining", f"₹{balance:,.0f}")
 
-    df.to_excel(writer, sheet_name="Data", index=False)
+    if len(df.columns) >= 3:
 
-    monthly.to_excel(writer, sheet_name="Monthly Summary")
+        x_col = df.columns[0]
 
-    category.to_excel(writer, sheet_name="Category Summary")
+        fig = px.bar(
+            df,
+            x=x_col,
+            y=[budget_col, actual_col],
+            barmode="group",
+            title="Budget vs Actual"
+        )
 
-    summary = pd.DataFrame({
-        "Metric": [
-            "Total Budget",
-            "Total Actual",
-            "Remaining Budget",
-            "Budget Utilization (%)"
-        ],
-        "Value": [
-            total_budget,
-            total_actual,
-            remaining,
-            round(utilization, 2)
-        ]
-    })
+        st.plotly_chart(fig, use_container_width=True)
 
-    summary.to_excel(writer, sheet_name="Dashboard", index=False)
+    if len(df.columns) >= 2:
 
-# ==========================================
-# Formatting
-# ==========================================
-wb = load_workbook(OUTPUT_FILE)
-ws = wb["Dashboard"]
+        cat_col = df.columns[0]
 
-header_fill = PatternFill(
-    start_color="1F4E78",
-    end_color="1F4E78",
-    fill_type="solid"
-)
+        pie = px.pie(
+            df,
+            names=cat_col,
+            values=actual_col,
+            title="Expense Distribution"
+        )
 
-for cell in ws[1]:
-    cell.font = Font(bold=True, color="FFFFFF")
-    cell.fill = header_fill
+        st.plotly_chart(pie, use_container_width=True)
 
-wb.save(OUTPUT_FILE)
-
-print("Dashboard created successfully!")
+else:
+    st.warning("No numeric budget columns found.")
