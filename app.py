@@ -384,3 +384,152 @@ st.download_button(
     "Filtered_Budget.csv",
     "text/csv"
 )
+# ==========================================================
+# PART 3 - Executive Features
+# ==========================================================
+
+import io
+
+st.divider()
+st.header("📈 Executive Summary")
+
+# ----------------------------------------------------------
+# Budget Health
+# ----------------------------------------------------------
+
+total = filtered_df[y_col].sum()
+average = filtered_df[y_col].mean()
+
+left, right = st.columns([3,1])
+
+with left:
+
+    progress = 0
+
+    if maximum_value > 0:
+        progress = min(total / maximum_value, 1.0)
+
+    st.progress(progress)
+
+with right:
+
+    if progress < 0.50:
+        st.success("✅ Budget Healthy")
+
+    elif progress < 0.80:
+        st.warning("⚠ Budget Watch")
+
+    else:
+        st.error("🚨 Budget Limit Reached")
+
+# ----------------------------------------------------------
+# Top Records
+# ----------------------------------------------------------
+
+st.subheader("🏆 Top Transactions")
+
+st.dataframe(
+    filtered_df.nlargest(
+        min(15, len(filtered_df)),
+        y_col
+    ),
+    use_container_width=True
+)
+
+# ----------------------------------------------------------
+# Bottom Records
+# ----------------------------------------------------------
+
+st.subheader("📉 Lowest Transactions")
+
+st.dataframe(
+    filtered_df.nsmallest(
+        min(15, len(filtered_df)),
+        y_col
+    ),
+    use_container_width=True
+)
+
+# ----------------------------------------------------------
+# Export to Excel
+# ----------------------------------------------------------
+
+output = io.BytesIO()
+
+with pd.ExcelWriter(output, engine="openpyxl") as writer:
+
+    filtered_df.to_excel(
+        writer,
+        sheet_name="Filtered Data",
+        index=False
+    )
+
+    stats = pd.DataFrame({
+        "Metric":[
+            "Rows",
+            "Total",
+            "Average",
+            "Maximum",
+            "Minimum"
+        ],
+        "Value":[
+            len(filtered_df),
+            filtered_df[y_col].sum(),
+            filtered_df[y_col].mean(),
+            filtered_df[y_col].max(),
+            filtered_df[y_col].min()
+        ]
+    })
+
+    stats.to_excel(
+        writer,
+        sheet_name="Summary",
+        index=False
+    )
+
+st.download_button(
+    "📥 Download Excel Report",
+    output.getvalue(),
+    file_name="Budget_Report.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+# ----------------------------------------------------------
+# Metrics Table
+# ----------------------------------------------------------
+
+st.subheader("📋 Dashboard Metrics")
+
+metrics = pd.DataFrame({
+    "Metric":[
+        "Records",
+        "Total",
+        "Average",
+        "Maximum",
+        "Minimum",
+        "Unique Values"
+    ],
+    "Value":[
+        len(filtered_df),
+        round(filtered_df[y_col].sum(),2),
+        round(filtered_df[y_col].mean(),2),
+        round(filtered_df[y_col].max(),2),
+        round(filtered_df[y_col].min(),2),
+        filtered_df[x_col].nunique()
+    ]
+})
+
+st.dataframe(
+    metrics,
+    use_container_width=True
+)
+
+# ----------------------------------------------------------
+# Footer
+# ----------------------------------------------------------
+
+st.divider()
+
+st.caption(
+    "Annual Budget Dashboard | Built with Streamlit • Plotly • Pandas"
+)
