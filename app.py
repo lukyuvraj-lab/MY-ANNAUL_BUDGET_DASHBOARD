@@ -120,7 +120,7 @@ for col in df.columns:
 
     if df[col].dtype == object and df[col].nunique() <= 30:
 
-        try:
+try:
     options = sorted(df[col].dropna().astype(str).unique())
 except Exception:
     options = list(df[col].dropna().astype(str).unique())
