@@ -155,3 +155,232 @@ st.info(
     "expense analysis, category breakdown, savings dashboard, "
     "and budget vs actual visualizations."
 )
+# ==========================================================
+# PART 2 - Interactive Dashboard
+# ==========================================================
+
+st.divider()
+st.header("📊 Dashboard Analytics")
+
+numeric_cols = filtered_df.select_dtypes(include="number").columns.tolist()
+
+if len(numeric_cols) < 1:
+    st.warning("No numeric columns available.")
+    st.stop()
+
+# ----------------------------------------------------------
+# Select Columns
+# ----------------------------------------------------------
+
+x_col = st.selectbox(
+    "X Axis",
+    filtered_df.columns,
+    index=0
+)
+
+y_col = st.selectbox(
+    "Y Axis",
+    numeric_cols,
+    index=0
+)
+
+# ----------------------------------------------------------
+# Dashboard KPIs
+# ----------------------------------------------------------
+
+k1, k2, k3, k4 = st.columns(4)
+
+k1.metric(
+    "Records",
+    len(filtered_df)
+)
+
+k2.metric(
+    "Total",
+    f"{filtered_df[y_col].sum():,.2f}"
+)
+
+k3.metric(
+    "Average",
+    f"{filtered_df[y_col].mean():,.2f}"
+)
+
+k4.metric(
+    "Maximum",
+    f"{filtered_df[y_col].max():,.2f}"
+)
+
+st.divider()
+
+# ----------------------------------------------------------
+# Bar Chart
+# ----------------------------------------------------------
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.subheader("Bar Chart")
+
+    fig = px.bar(
+        filtered_df,
+        x=x_col,
+        y=y_col,
+        color=y_col,
+        text_auto=True
+    )
+
+    fig.update_layout(height=450)
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# ----------------------------------------------------------
+# Line Chart
+# ----------------------------------------------------------
+
+with col2:
+
+    st.subheader("Trend")
+
+    fig = px.line(
+        filtered_df,
+        x=x_col,
+        y=y_col,
+        markers=True
+    )
+
+    fig.update_layout(height=450)
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# ----------------------------------------------------------
+# Pie Chart
+# ----------------------------------------------------------
+
+if filtered_df[x_col].nunique() <= 20:
+
+    st.subheader("Distribution")
+
+    pie = px.pie(
+        filtered_df,
+        names=x_col,
+        values=y_col,
+        hole=.45
+    )
+
+    pie.update_layout(height=550)
+
+    st.plotly_chart(
+        pie,
+        use_container_width=True
+    )
+
+# ----------------------------------------------------------
+# Monthly Trend
+# ----------------------------------------------------------
+
+months = [
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+]
+
+month_column = None
+
+for col in filtered_df.columns:
+
+    if filtered_df[col].astype(str).isin(months).any():
+        month_column = col
+        break
+
+if month_column:
+
+    st.subheader("Monthly Trend")
+
+    month_df = (
+        filtered_df
+        .groupby(month_column)[y_col]
+        .sum()
+        .reindex(months)
+        .fillna(0)
+        .reset_index()
+    )
+
+    fig = px.area(
+        month_df,
+        x=month_column,
+        y=y_col
+    )
+
+    fig.update_layout(height=450)
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# ----------------------------------------------------------
+# Top 10
+# ----------------------------------------------------------
+
+st.subheader("Top 10 Values")
+
+top10 = filtered_df.nlargest(
+    min(10, len(filtered_df)),
+    y_col
+)
+
+fig = px.bar(
+    top10,
+    x=x_col,
+    y=y_col,
+    text_auto=True
+)
+
+fig.update_layout(height=450)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
+
+# ----------------------------------------------------------
+# Heatmap
+# ----------------------------------------------------------
+
+st.subheader("Correlation")
+
+if len(numeric_cols) > 1:
+
+    corr = filtered_df[numeric_cols].corr()
+
+    heat = px.imshow(
+        corr,
+        text_auto=".2f",
+        aspect="auto"
+    )
+
+    heat.update_layout(height=500)
+
+    st.plotly_chart(
+        heat,
+        use_container_width=True
+    )
+
+# ----------------------------------------------------------
+# Download Filtered Data
+# ----------------------------------------------------------
+
+csv = filtered_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    "⬇ Download Filtered Data",
+    csv,
+    "Filtered_Budget.csv",
+    "text/csv"
+)
