@@ -1,6 +1,13 @@
+import streamlit as st
 import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill
+
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file)
+else:
+    st.info("Please upload your budget Excel file.")
+    st.stop()
 
 # ==========================================
 # Input and Output Files
