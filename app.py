@@ -118,7 +118,7 @@ filtered_df = df.copy()
 
 for col in df.columns:
 
-    if df[col].dtype == object and df[col].nunique() <= 30:
+if df[col].dtype == object and df[col].nunique() <= 30:
 
 try:
     options = sorted(df[col].dropna().astype(str).unique())
