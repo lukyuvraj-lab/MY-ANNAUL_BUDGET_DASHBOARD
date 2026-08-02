@@ -1,99 +1,64 @@
-import streamlit as st
+from openpyxl import load_workbook
 import pandas as pd
-import plotly.express as px
 
-st.set_page_config(page_title="Annual Budget Dashboard", layout="wide")
+wb = load_workbook("My Annual Budget(1).xlsx", data_only=True)
 
-st.title("📊 Annual Budget Dashboard")
+# ---------- Monthly ----------
+ws = wb["Budget by month"]
 
-uploaded_file = st.file_uploader("Upload Annual Budget Excel", type=["xlsx"])
+monthly_income = ws["B5"].value
+monthly_expense = ws["B6"].value
+monthly_saving = monthly_income - monthly_expense
+monthly_spend_pct = monthly_expense / monthly_income * 100
+monthly_saving_pct = monthly_saving / monthly_income * 100
 
-if uploaded_file is None:
-    st.stop()
+print(monthly_income)
+print(monthly_expense)
+print(monthly_saving)
 
-# Read sheets
-month_df = pd.read_excel(uploaded_file, sheet_name="Budget by month")
-year_df = pd.read_excel(uploaded_file, sheet_name=" Budget by year")
+# ---------- Yearly ----------
+ys = wb[" Budget by year"]
 
-# ---------- CHANGE THESE COLUMN NAMES TO MATCH YOUR FILE ----------
-income_col = "Income"
-expense_col = "Expenses"
-month_col = "Month"
-category_col = "Category"
-year_col = "Year"
-# ---------------------------------------------------------------
+yearly_income = ys["B5"].value
+yearly_expense = ys["B6"].value
+yearly_saving = yearly_income - yearly_expense
 
-# KPI
-total_income = month_df[income_col].sum()
-total_expense = month_df[expense_col].sum()
-saving = total_income - total_expense
-spend_pct = total_expense / total_income * 100
-saving_pct = saving / total_income * 100
+print(yearly_income)
+print(yearly_expense)
+print(yearly_saving)
 
-c1, c2, c3, c4, c5 = st.columns(5)
+# ---------- Year Table ----------
+rows = []
 
-c1.metric("Income", f"₹{total_income:,.0f}")
-c2.metric("Expenses", f"₹{total_expense:,.0f}")
-c3.metric("Savings", f"₹{saving:,.0f}")
-c4.metric("Spend %", f"{spend_pct:.1f}%")
-c5.metric("Savings %", f"{saving_pct:.1f}%")
+r = 4
 
-st.divider()
+while True:
 
-# Month Filter
-month = st.selectbox(
-    "Select Month",
-    ["All"] + list(month_df[month_col].dropna().unique())
-)
+    year = ys[f"V{r}"].value
 
-if month != "All":
-    filtered = month_df[month_df[month_col] == month]
-else:
-    filtered = month_df
+    if year is None:
+        break
 
-col1, col2 = st.columns(2)
+    income = ys[f"W{r}"].value
+    expense = ys[f"X{r}"].value
+    saving = ys[f"Y{r}"].value
+    percent = ys[f"Z{r}"].value
 
-with col1:
-
-    chart = px.bar(
-        filtered,
-        x=month_col,
-        y=[income_col, expense_col],
-        barmode="group",
-        title="Income vs Expenses"
+    rows.append(
+        [year, income, expense, saving, percent]
     )
 
-    st.plotly_chart(chart, use_container_width=True)
+    r += 1
 
-with col2:
-
-    donut = px.pie(
-        filtered,
-        names=category_col,
-        values=expense_col,
-        hole=0.55,
-        title="Category Spend"
-    )
-
-    st.plotly_chart(donut, use_container_width=True)
-
-st.subheader("Monthly Income")
-
-st.dataframe(filtered)
-
-# Year Summary
-year_df["Savings"] = year_df[income_col] - year_df[expense_col]
-
-fig = px.bar(
-    year_df,
-    x=year_col,
-    y=[income_col, expense_col, "Savings"],
-    barmode="group",
-    title="Year Income vs Expenses vs Savings"
+year_df = pd.DataFrame(
+    rows,
+    columns=[
+        "Year",
+        "Income",
+        "Expenses",
+        "Savings",
+        "Spend %"
+    ]
 )
 
-st.plotly_chart(fig, use_container_width=True)
-
-st.subheader("Budget by Year")
-
-st.dataframe(year_df)
+print(year_df)
