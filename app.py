@@ -39,16 +39,21 @@ try:
 
     for sheet in xl.sheet_names:
         try:
-            sheets[sheet] = pd.read_excel(uploaded_file, sheet_name=sheet)
-        except Exception:
-            pass
+            df = pd.read_excel(uploaded_file, sheet_name=sheet)
+
+            # Remove Unnamed columns
+            df = df.loc[:, ~df.columns.astype(str).str.contains("^Unnamed")]
+
+            sheets[sheet] = df
+
+        except Exception as e:
+            st.warning(f"Couldn't read sheet '{sheet}': {e}")
 
 except Exception as e:
     st.error(e)
     st.stop()
 
 st.success("Workbook loaded successfully.")
-
 # -----------------------------
 # Sheet Selection
 # -----------------------------
