@@ -41,9 +41,7 @@ try:
         try:
             df = pd.read_excel(uploaded_file, sheet_name=sheet)
 
-            # Remove Unnamed columns
-            df = df.loc[:, ~df.columns.astype(str).str.contains("^Unnamed")]
-
+            
             sheets[sheet] = df
 
         except Exception as e:
