@@ -29,10 +29,19 @@ print(monthly_saving)
 # ---------- Yearly ----------
 ys = wb[" Budget by year"]
 
-yearly_income = ys["B5"].value
-yearly_expense = ys["B6"].value
-yearly_saving = yearly_income - yearly_expense
+def to_number(value):
+    if value is None:
+        return 0
+    if isinstance(value, str):
+        value = value.replace(",", "").replace("₹", "").strip()
+        if value == "":
+            return 0
+    return float(value)
 
+yearly_income = to_number(ys["B5"].value)
+yearly_expense = to_number(ys["B6"].value)
+
+yearly_saving = yearly_income - yearly_expense
 print(yearly_income)
 print(yearly_expense)
 print(yearly_saving)
