@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
+# -----------------------------
+# Page Configuration
+# -----------------------------
 st.set_page_config(
     page_title="Annual Budget Dashboard",
     page_icon="💰",
@@ -9,66 +13,145 @@ st.set_page_config(
 )
 
 st.title("💰 Annual Budget Dashboard")
+st.caption("Professional Budget Analytics Dashboard")
 
-uploaded_file = st.file_uploader(
-    "Upload your Annual Budget Excel",
+# -----------------------------
+# Sidebar
+# -----------------------------
+st.sidebar.header("Upload Budget Workbook")
+
+uploaded_file = st.sidebar.file_uploader(
+    "Select Annual Budget Excel File",
     type=["xlsx"]
 )
 
 if uploaded_file is None:
-    st.info("Upload your Excel file to continue.")
+    st.info("👈 Upload your Annual Budget workbook to begin.")
     st.stop()
 
-# Read the first sheet
-df = pd.read_excel(uploaded_file, sheet_name=0)
+# -----------------------------
+# Read Workbook
+# -----------------------------
+try:
+    xl = pd.ExcelFile(uploaded_file)
 
-st.subheader("Budget Data")
-st.dataframe(df, use_container_width=True)
+    sheets = {}
 
-# Detect numeric columns
+    for sheet in xl.sheet_names:
+        try:
+            sheets[sheet] = pd.read_excel(uploaded_file, sheet_name=sheet)
+        except Exception:
+            pass
+
+except Exception as e:
+    st.error(e)
+    st.stop()
+
+st.success("Workbook loaded successfully.")
+
+# -----------------------------
+# Sheet Selection
+# -----------------------------
+sheet_name = st.sidebar.selectbox(
+    "Choose Sheet",
+    list(sheets.keys())
+)
+
+df = sheets[sheet_name]
+
+# -----------------------------
+# Preview
+# -----------------------------
+with st.expander("Preview Data"):
+    st.dataframe(df, use_container_width=True)
+
+# -----------------------------
+# Numeric Columns
+# -----------------------------
 numeric_cols = df.select_dtypes(include="number").columns.tolist()
 
-if len(numeric_cols) >= 2:
+if len(numeric_cols) == 0:
+    st.warning("No numeric columns found in this sheet.")
+    st.stop()
 
-    budget_col = numeric_cols[0]
-    actual_col = numeric_cols[1]
+# -----------------------------
+# KPIs
+# -----------------------------
+total_value = df[numeric_cols].sum().sum()
 
-    total_budget = df[budget_col].sum()
-    total_actual = df[actual_col].sum()
-    balance = total_budget - total_actual
+average_value = df[numeric_cols].mean().mean()
 
-    c1, c2, c3 = st.columns(3)
+maximum_value = df[numeric_cols].max().max()
 
-    c1.metric("Total Budget", f"₹{total_budget:,.0f}")
-    c2.metric("Total Spent", f"₹{total_actual:,.0f}")
-    c3.metric("Remaining", f"₹{balance:,.0f}")
+minimum_value = df[numeric_cols].min().min()
 
-    if len(df.columns) >= 3:
+c1, c2, c3, c4 = st.columns(4)
 
-        x_col = df.columns[0]
+c1.metric(
+    "Total",
+    f"{total_value:,.2f}"
+)
 
-        fig = px.bar(
-            df,
-            x=x_col,
-            y=[budget_col, actual_col],
-            barmode="group",
-            title="Budget vs Actual"
+c2.metric(
+    "Average",
+    f"{average_value:,.2f}"
+)
+
+c3.metric(
+    "Maximum",
+    f"{maximum_value:,.2f}"
+)
+
+c4.metric(
+    "Minimum",
+    f"{minimum_value:,.2f}"
+)
+
+st.divider()
+
+# -----------------------------
+# Filters
+# -----------------------------
+st.sidebar.header("Filters")
+
+filtered_df = df.copy()
+
+for col in df.columns:
+
+    if df[col].dtype == object and df[col].nunique() <= 30:
+
+        values = st.sidebar.multiselect(
+            col,
+            sorted(df[col].dropna().unique()),
+            default=sorted(df[col].dropna().unique())
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        filtered_df = filtered_df[
+            filtered_df[col].isin(values)
+        ]
 
-    if len(df.columns) >= 2:
+st.subheader("Filtered Data")
 
-        cat_col = df.columns[0]
+st.dataframe(
+    filtered_df,
+    use_container_width=True
+)
 
-        pie = px.pie(
-            df,
-            names=cat_col,
-            values=actual_col,
-            title="Expense Distribution"
-        )
+# -----------------------------
+# Summary
+# -----------------------------
+st.subheader("Summary Statistics")
 
-        st.plotly_chart(pie, use_container_width=True)
+st.dataframe(
+    filtered_df.describe(include="all"),
+    use_container_width=True
+)
 
-else:
-    st.warning("No numeric budget columns found.")
+# -----------------------------
+# Ready for Charts
+# -----------------------------
+st.info(
+    "Part 2 will add interactive charts, monthly trends, "
+    "expense analysis, category breakdown, savings dashboard, "
+    "and budget vs actual visualizations."
+)
