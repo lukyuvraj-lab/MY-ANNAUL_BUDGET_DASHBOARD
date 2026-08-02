@@ -109,7 +109,7 @@ c4.metric(
 
 st.divider()
 
-# -----------------------------
+## -----------------------------
 # Filters
 # -----------------------------
 st.sidebar.header("Filters")
@@ -117,16 +117,18 @@ st.sidebar.header("Filters")
 filtered_df = df.copy()
 
 for col in df.columns:
+    if df[col].dtype == "object" and df[col].nunique() <= 30:
 
-if df[col].dtype == object and df[col].nunique() <= 30:
+        options = sorted(df[col].dropna().astype(str).unique())
 
-try:
-    options = sorted(df[col].dropna().astype(str).unique())
-except Exception:
-    options = list(df[col].dropna().astype(str).unique())
+        values = st.sidebar.multiselect(
+            label=col,
+            options=options,
+            default=options
+        )
 
         filtered_df = filtered_df[
-            filtered_df[col].isin(values)
+            filtered_df[col].astype(str).isin(values)
         ]
 
 st.subheader("Filtered Data")
