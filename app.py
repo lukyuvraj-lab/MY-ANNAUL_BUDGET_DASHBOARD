@@ -120,11 +120,10 @@ for col in df.columns:
 
     if df[col].dtype == object and df[col].nunique() <= 30:
 
-        values = st.sidebar.multiselect(
-            col,
-            sorted(df[col].dropna().unique()),
-            default=sorted(df[col].dropna().unique())
-        )
+        try:
+    options = sorted(df[col].dropna().astype(str).unique())
+except Exception:
+    options = list(df[col].dropna().astype(str).unique())
 
         filtered_df = filtered_df[
             filtered_df[col].isin(values)
