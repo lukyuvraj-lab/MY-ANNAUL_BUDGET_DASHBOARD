@@ -1,13 +1,6 @@
-import streamlit as st
 import pandas as pd
-
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
-
-if uploaded_file is not None:
-    df = pd.read_excel(uploaded_file)
-else:
-    st.info("Please upload your budget Excel file.")
-    st.stop()
+from openpyxl import load_workbook
+from openpyxl.styles import Font, PatternFill
 
 # ==========================================
 # Input and Output Files
@@ -18,7 +11,21 @@ OUTPUT_FILE = "Annual_Budget_Dashboard.xlsx"
 # ==========================================
 # Read Data
 # ==========================================
-df = pd.read_excel(INPUT_FILE)
+import streamlit as st
+import pandas as pd
+
+st.title("Annual Budget Dashboard")
+
+uploaded_file = st.file_uploader(
+    "Upload your Annual Budget Excel file",
+    type=["xlsx"]
+)
+
+if uploaded_file is None:
+    st.info("Please upload an Excel file to continue.")
+    st.stop()
+
+df = pd.read_excel(uploaded_file)
 
 # Ensure Date column is datetime
 df["Date"] = pd.to_datetime(df["Date"])
