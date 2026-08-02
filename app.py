@@ -1,7 +1,17 @@
 from openpyxl import load_workbook
 import pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
 
-wb = load_workbook("My Annual Budget(1).xlsx", data_only=True)
+uploaded_file = st.file_uploader(
+    "Upload Annual Budget Excel",
+    type=["xlsx"]
+)
+
+if uploaded_file is None:
+    st.stop()
+
+wb = load_workbook(uploaded_file, data_only=True)
 
 # ---------- Monthly ----------
 ws = wb["Budget by month"]
