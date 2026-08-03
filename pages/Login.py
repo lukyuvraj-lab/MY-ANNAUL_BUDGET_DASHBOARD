@@ -27,7 +27,17 @@ with col1:
                     "password": password,
                 }
             )
-            st.success("Login successful!")
+            response = supabase.auth.sign_in_with_password(
+    {
+        "email": email,
+        "password": password,
+    }
+)
+
+st.session_state["user"] = response.user
+
+st.success("Login successful!")
+st.rerun()
         except Exception as e:
             st.error(f"Login failed: {e}")
 
