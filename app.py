@@ -4,10 +4,6 @@ from supabase import create_client
 from datetime import date
 import streamlit as st
 
-import streamlit as st
-
-import streamlit as st
-
 if "user" in st.session_state:
     st.switch_page("pages/Dashboard.py")
 else:
@@ -15,11 +11,13 @@ else:
 # -----------------------------
 # PAGE CONFIG
 # -----------------------------
-st.set_page_config(
-    page_title="MoneyMate",
-    page_icon="💰",
-    layout="wide"
-)
+import streamlit as st
+
+st.set_page_config(page_title="MoneyMate")
+
+st.title("MoneyMate")
+
+st.write("Welcome to MoneyMate")
 
 # -----------------------------
 # SUPABASE
