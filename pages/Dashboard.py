@@ -1,5 +1,10 @@
 import streamlit as st
 from supabase import create_client
+import streamlit as st
+
+if "user" not in st.session_state:
+    st.switch_page("pages/Login.py")
+    st.stop()
 
 st.set_page_config(page_title="MoneyMate Login", page_icon="🔐")
 
