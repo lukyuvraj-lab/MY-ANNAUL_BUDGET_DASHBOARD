@@ -1,17 +1,10 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
+from datetime import date
 
 # -----------------------------
-# Supabase Connection
-# -----------------------------
-SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
-SUPABASE_KEY = "PASTE_YOUR_ANON_KEY_HERE"
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# -----------------------------
-# Page Config
+# PAGE CONFIG
 # -----------------------------
 st.set_page_config(
     page_title="MoneyMate",
@@ -19,47 +12,57 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("💰 MoneyMate - Personal Finance Dashboard")
+# -----------------------------
+# SUPABASE
+# -----------------------------
+SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
+
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------
-# Add Transaction
+# TITLE
 # -----------------------------
-st.header("➕ Add Transaction")
+st.title("💰 MoneyMate")
+st.caption("Personal Finance Dashboard")
 
-col1, col2 = st.columns(2)
+# -----------------------------
+# ADD TRANSACTION
+# -----------------------------
+st.subheader("➕ Add Transaction")
 
-with col1:
-    date = st.date_input("Date")
+c1, c2 = st.columns(2)
+
+with c1:
+    trans_date = st.date_input("Date", value=date.today())
     trans_type = st.selectbox("Type", ["Income", "Expense"])
-    amount = st.number_input("Amount", min_value=0.0, step=1.0)
+    amount = st.number_input("Amount", min_value=0.0)
 
-with col2:
+with c2:
     category = st.text_input("Category")
     account = st.selectbox(
         "Account",
         ["Cash", "Bank", "UPI", "Credit Card"]
     )
     note = st.text_area("Note")
-    
-if st.button("💾 Save Transaction"):
 
-    data = {
-        "date": str(date),
+if st.button("💾 Save"):
+
+    supabase.table("transactions").insert({
+        "date": str(trans_date),
         "type": trans_type,
         "amount": amount,
         "category": category,
         "account": account,
         "note": note
-    }
+    }).execute()
 
-    supabase.table("transactions").insert(data).execute()
+    st.success("Transaction Saved")
 
-    st.success("✅ Transaction saved successfully!")
-
-st.divider()
-
-st.header("📋 Transactions")
-
+# -----------------------------
+# LOAD DATA
+# -----------------------------
 response = (
     supabase.table("transactions")
     .select("*")
@@ -69,17 +72,26 @@ response = (
 
 df = pd.DataFrame(response.data)
 
-if not df.empty:
-    total_income = df[df["type"] == "Income"]["amount"].sum()
-    total_expense = df[df["type"] == "Expense"]["amount"].sum()
-    balance = total_income - total_expense
+st.divider()
 
-    c1, c2, c3 = st.columns(3)
+st.subheader("Dashboard")
 
-    c1.metric("💰 Income", f"₹{total_income:,.2f}")
-    c2.metric("💸 Expense", f"₹{total_expense:,.2f}")
-    c3.metric("🏦 Balance", f"₹{balance:,.2f}")
+if df.empty:
+    st.info("No transactions yet.")
+    st.stop()
 
-    st.dataframe(df, use_container_width=True)
-else:
-    st.info("No transactions found.")
+income = df[df["type"] == "Income"]["amount"].sum()
+expense = df[df["type"] == "Expense"]["amount"].sum()
+balance = income - expense
+
+a, b, c = st.columns(3)
+
+a.metric("Income", f"₹{income:,.2f}")
+b.metric("Expense", f"₹{expense:,.2f}")
+c.metric("Balance", f"₹{balance:,.2f}")
+
+st.divider()
+
+st.subheader("Transactions")
+
+st.dataframe(df, use_container_width=True)
