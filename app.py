@@ -42,7 +42,6 @@ with col2:
     note = st.text_area("Note")
     
 if st.button("💾 Save Transaction"):
-    ])
 
     r += 1
 
