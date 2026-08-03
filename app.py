@@ -43,17 +43,43 @@ with col2:
     
 if st.button("💾 Save Transaction"):
 
-    r += 1
+    data = {
+        "date": str(date),
+        "type": trans_type,
+        "amount": amount,
+        "category": category,
+        "account": account,
+        "note": note
+    }
 
-year_df = pd.DataFrame(
-    rows,
-    columns=[
-        "Year",
-        "Income",
-        "Expense",
-        "Saving",
-        "Spend %"
-    ]
+    supabase.table("transactions").insert(data).execute()
+
+    st.success("✅ Transaction saved successfully!")
+
+st.divider()
+
+st.header("📋 Transactions")
+
+response = (
+    supabase.table("transactions")
+    .select("*")
+    .order("date", desc=True)
+    .execute()
 )
 
-st.dataframe(year_df, use_container_width=True)
+df = pd.DataFrame(response.data)
+
+if not df.empty:
+    total_income = df[df["type"] == "Income"]["amount"].sum()
+    total_expense = df[df["type"] == "Expense"]["amount"].sum()
+    balance = total_income - total_expense
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric("💰 Income", f"₹{total_income:,.2f}")
+    c2.metric("💸 Expense", f"₹{total_expense:,.2f}")
+    c3.metric("🏦 Balance", f"₹{balance:,.2f}")
+
+    st.dataframe(df, use_container_width=True)
+else:
+    st.info("No transactions found.")
