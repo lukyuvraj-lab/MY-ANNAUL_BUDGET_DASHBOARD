@@ -20,14 +20,6 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ------------------ UI ------------------
-st.title("🔐 MoneyMate Login")
-
-email = st.text_input("Email")
-password = st.text_input("Password", type="password")
-
-col1, col2 = st.columns(2)
-
 # ------------------ Login ------------------
 with col1:
     if st.button("Login"):
