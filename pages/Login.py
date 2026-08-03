@@ -21,18 +21,19 @@ col1, col2 = st.columns(2)
 with col1:
     if st.button("Login"):
         try:
-            supabase.auth.sign_in_with_password(
+            response = supabase.auth.sign_in_with_password(
                 {
                     "email": email,
                     "password": password,
                 }
             )
-            response = supabase.auth.sign_in_with_password(
-    {
-        "email": email,
-        "password": password,
-    }
-)
+
+            st.session_state["user"] = response.user
+            st.success("Login successful!")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"Login failed: {e}")
 
 st.session_state["user"] = response.user
 
