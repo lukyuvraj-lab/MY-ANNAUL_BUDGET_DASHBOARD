@@ -1,11 +1,8 @@
 import streamlit as st
 from supabase import create_client
 
-# Supabase Connection
 SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
-
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
-
+SUPABASE_KEY = "YOUR_ANON_KEY"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -35,13 +32,6 @@ with col1:
         except Exception as e:
             st.error(f"Login failed: {e}")
 
-st.session_state["user"] = response.user
-
-st.success("Login successful!")
-st.rerun()
-        except Exception as e:
-            st.error(f"Login failed: {e}")
-
 with col2:
     if st.button("Sign Up"):
         try:
@@ -51,6 +41,6 @@ with col2:
                     "password": password,
                 }
             )
-            st.success("Account created! Please check your email if confirmation is enabled.")
+            st.success("Account created! Check your email.")
         except Exception as e:
             st.error(f"Sign Up failed: {e}")
