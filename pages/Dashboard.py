@@ -1,184 +1,64 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import streamlit as st
-import pandas as pd
-import plotly.express as px
 from supabase import create_client
-import streamlit as st
 
-if "user" not in st.session_state:
-    st.switch_page("pages/Login.py")
+st.set_page_config(page_title="MoneyMate Login", page_icon="🔐")
 
+# If already logged in, go to dashboard
+if "user" in st.session_state:
+    st.switch_page("pages/Dashboard.py")
+
+# ------------------ Supabase ------------------
 SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
+
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
 
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.set_page_config(
-    page_title="MoneyMate Dashboard",
-    layout="wide"
-)
-
-
-st.title("💰 MoneyMate Dashboard")
-
-
-# Fetch transactions
-
-response = supabase.table(
-    "transactions"
-).select("*").execute()
-
-
-data = response.data
-
-
-if data:
-
-    df = pd.DataFrame(data)
-
-
-    # KPI calculations
-
-    income = df[
-        df["type"]=="Income"
-    ]["amount"].sum()
-
-
-    expense = df[
-        df["type"]=="Expense"
-    ]["amount"].sum()
-
-
-    balance = income - expense
-
-
-    savings = 0
-
-    if income > 0:
-        savings = (balance/income)*100
-
-
-
-    # Cards
-
-    col1,col2,col3,col4 = st.columns(4)
-
-
-    col1.metric(
-        "💰 Income",
-        f"₹ {income:,.0f}"
-    )
-
-
-    col2.metric(
-        "💸 Expense",
-        f"₹ {expense:,.0f}"
-    )
-
-
-    col3.metric(
-        "🏦 Balance",
-        f"₹ {balance:,.0f}"
-    )
-
-
-    col4.metric(
-        "📊 Savings %",
-        f"{savings:.1f}%"
-    )
-
-
-
-    st.divider()
-
-
-    # Monthly chart
-
-    df["date"] = pd.to_datetime(df["date"])
-
-    monthly = (
-        df.groupby(
-            [
-                df["date"].dt.month,
-                "type"
-            ]
-        )["amount"]
-        .sum()
-        .reset_index()
-    )
-
-
-    fig = px.bar(
-        monthly,
-        x="date",
-        y="amount",
-        color="type",
-        title="📈 Monthly Income vs Expense"
-    )
-
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-
-
-    # Category chart
-
-    expense_df = df[
-        df["type"]=="Expense"
-    ]
-
-
-    if not expense_df.empty:
-
-        category = (
-            expense_df
-            .groupby("category")
-            ["amount"]
-            .sum()
-            .reset_index()
-        )
-
-
-        pie = px.pie(
-            category,
-            names="category",
-            values="amount",
-            title="🥧 Expense By Category"
-        )
-
-
-        st.plotly_chart(
-            pie,
-            use_container_width=True
-        )
-
-
-
-    st.divider()
-
-
-    st.subheader(
-        "📋 Recent Transactions"
-    )
-
-
-    st.dataframe(
-        df.sort_values(
-            "date",
-            ascending=False
-        ).head(10),
-        use_container_width=True
-    )
-
-
-else:
-
-    st.info(
-        "No transactions yet"
-    )
+# ------------------ UI ------------------
+st.title("🔐 MoneyMate Login")
+
+email = st.text_input("Email")
+password = st.text_input("Password", type="password")
+
+col1, col2 = st.columns(2)
+
+# ------------------ Login ------------------
+with col1:
+    if st.button("Login"):
+        if not email or not password:
+            st.warning("Please enter email and password.")
+        else:
+            try:
+                response = supabase.auth.sign_in_with_password(
+                    {
+                        "email": email,
+                        "password": password,
+                    }
+                )
+
+                st.session_state["user"] = response.user
+                st.success("Login successful!")
+                st.switch_page("pages/Dashboard.py")
+
+            except Exception as e:
+                st.error(f"Login failed: {e}")
+
+# ------------------ Sign Up ------------------
+with col2:
+    if st.button("Sign Up"):
+        if not email or not password:
+            st.warning("Please enter email and password.")
+        else:
+            try:
+                supabase.auth.sign_up(
+                    {
+                        "email": email,
+                        "password": password,
+                    }
+                )
+
+                st.success("Account created successfully! Please check your email.")
+
+            except Exception as e:
+                st.error(f"Sign Up failed: {e}")
