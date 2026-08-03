@@ -4,7 +4,6 @@ import plotly.express as px
 
 from utils.supabase_client import supabase
 
-
 st.set_page_config(
     page_title="MoneyMate Dashboard",
     layout="wide"
