@@ -26,7 +26,7 @@ SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
 
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
 
-SUPABASE_KEY = ("YOUR_SUPABASE_ANON_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------
 # TITLE
