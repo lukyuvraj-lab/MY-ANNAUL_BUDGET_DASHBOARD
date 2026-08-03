@@ -5,8 +5,8 @@ from supabase import create_client
 # -----------------------------
 # Supabase Connection
 # -----------------------------
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
+SUPABASE_KEY = "PASTE_YOUR_ANON_KEY_HERE"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
