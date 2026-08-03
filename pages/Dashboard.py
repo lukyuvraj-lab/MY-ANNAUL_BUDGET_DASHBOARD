@@ -4,6 +4,16 @@ import plotly.express as px
 
 from utils.supabase_client import supabase
 
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from supabase import create_client
+
+SUPABASE_URL = "your_supabase_url"
+SUPABASE_KEY = "your_supabase_key"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 st.set_page_config(
     page_title="MoneyMate Dashboard",
     layout="wide"
