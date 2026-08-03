@@ -2,7 +2,12 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 from datetime import date
+import streamlit as st
 
+if "user" in st.session_state:
+    st.switch_page("pages/Dashboard.py")
+else:
+    st.switch_page("pages/Login.py")
 # -----------------------------
 # PAGE CONFIG
 # -----------------------------
