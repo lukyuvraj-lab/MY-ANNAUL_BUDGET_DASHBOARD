@@ -29,7 +29,8 @@ with col1:
 
             st.session_state["user"] = response.user
             st.success("Login successful!")
-            st.switch_page("pages/Dashboard.py")
+            st.session_state["user"] = response.user
+st.switch_page("pages/Dashboard.py")
 
         except Exception as e:
             st.error(f"Login failed: {e}")
