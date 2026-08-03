@@ -1,116 +1,47 @@
-from openpyxl import load_workbook
-import pandas as pd
 import streamlit as st
-import re
+import pandas as pd
+from supabase import create_client
 
-st.set_page_config(page_title="Annual Budget Dashboard", layout="wide")
+# -----------------------------
+# Supabase Connection
+# -----------------------------
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-uploaded_file = st.file_uploader(
-    "Upload Annual Budget Excel",
-    type=["xlsx"]
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# -----------------------------
+# Page Config
+# -----------------------------
+st.set_page_config(
+    page_title="MoneyMate",
+    page_icon="💰",
+    layout="wide"
 )
 
-if uploaded_file is None:
-    st.stop()
+st.title("💰 MoneyMate - Personal Finance Dashboard")
 
-wb = load_workbook(uploaded_file, data_only=True)
+# -----------------------------
+# Add Transaction
+# -----------------------------
+st.header("➕ Add Transaction")
 
+col1, col2 = st.columns(2)
 
-# --------------------------
-# Convert any cell to number
-# --------------------------
-def to_number(value):
+with col1:
+    date = st.date_input("Date")
+    trans_type = st.selectbox("Type", ["Income", "Expense"])
+    amount = st.number_input("Amount", min_value=0.0, step=1.0)
 
-    if value is None:
-        return 0
+with col2:
+    category = st.text_input("Category")
+    account = st.selectbox(
+        "Account",
+        ["Cash", "Bank", "UPI", "Credit Card"]
+    )
+    note = st.text_area("Note")
 
-    if isinstance(value, (int, float)):
-        return float(value)
-
-    value = str(value)
-
-    value = re.sub(r"[^\d.-]", "", value)
-
-    if value == "":
-        return 0
-
-    try:
-        return float(value)
-    except:
-        return 0
-
-
-# ==========================
-# MONTHLY
-# ==========================
-
-ws = wb["Budget by month"]
-
-monthly_income = to_number(ws["B5"].value)
-monthly_expense = to_number(ws["B6"].value)
-
-monthly_saving = monthly_income - monthly_expense
-
-monthly_spend_pct = (
-    monthly_expense / monthly_income * 100
-    if monthly_income else 0
-)
-
-monthly_saving_pct = (
-    monthly_saving / monthly_income * 100
-    if monthly_income else 0
-)
-
-st.subheader("Monthly Summary")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-c1.metric("Income", f"₹{monthly_income:,.0f}")
-c2.metric("Expense", f"₹{monthly_expense:,.0f}")
-c3.metric("Saving", f"₹{monthly_saving:,.0f}")
-c4.metric("Spend %", f"{monthly_spend_pct:.1f}%")
-c5.metric("Saving %", f"{monthly_saving_pct:.1f}%")
-
-
-# ==========================
-# YEARLY
-# ==========================
-
-ys = wb[" Budget by year"]
-
-yearly_income = to_number(ys["B5"].value)
-yearly_expense = to_number(ys["B6"].value)
-
-yearly_saving = yearly_income - yearly_expense
-
-st.subheader("Yearly Summary")
-
-st.write("Income :", yearly_income)
-st.write("Expense :", yearly_expense)
-st.write("Saving :", yearly_saving)
-
-
-# ==========================
-# YEAR TABLE
-# ==========================
-
-rows = []
-
-r = 4
-
-while True:
-
-    year = ys[f"V{r}"].value
-
-    if year is None:
-        break
-
-    rows.append([
-        year,
-        to_number(ys[f"W{r}"].value),
-        to_number(ys[f"X{r}"].value),
-        to_number(ys[f"Y{r}"].value),
-        to_number(ys[f"Z{r}"].value)
+if st.button("💾        to_number(ys[f"Z{r}"].value)
     ])
 
     r += 1
