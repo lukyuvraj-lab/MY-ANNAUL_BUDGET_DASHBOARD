@@ -40,8 +40,8 @@ with col2:
         ["Cash", "Bank", "UPI", "Credit Card"]
     )
     note = st.text_area("Note")
-
-if st.button("💾        to_number(ys[f"Z{r}"].value)
+    
+if st.button("💾 Save Transaction"):
     ])
 
     r += 1
