@@ -5,6 +5,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from supabase import create_client
+import streamlit as st
+
+if "user" not in st.session_state:
+    st.switch_page("pages/Login.py")
 
 SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
