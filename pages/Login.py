@@ -29,6 +29,7 @@ with col1:
 
             st.session_state["user"] = response.user
             st.success("Login successful!")
+            st.rerun()
             # st.switch_page("pages/Dashboard.py")
 
         except Exception as e:
