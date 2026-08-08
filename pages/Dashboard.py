@@ -1,9 +1,8 @@
 import streamlit as st
-from supabase import create_client
 from datetime import datetime
 
 # ============================================================
-# PAGE CONFIGURATION
+# PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
@@ -12,31 +11,13 @@ st.set_page_config(
     layout="wide"
 )
 
-
 # ============================================================
 # LOGIN CHECK
 # ============================================================
 
-if "user" not in st.session_state or st.session_state["user"] is None:
-    st.switch_page("Login.py")
+if "user" not in st.session_state:
+    st.switch_page("pages/Login.py")
     st.stop()
-
-
-# ============================================================
-# SUPABASE
-# ============================================================
-
-SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
-
-# IMPORTANT:
-# Put the same Supabase ANON KEY that you are using in Login.py
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTM"
-
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
-
 
 # ============================================================
 # USER
@@ -44,72 +25,265 @@ supabase = create_client(
 
 user = st.session_state["user"]
 
-
 # ============================================================
-# SESSION TRANSACTIONS
+# TRANSACTIONS
 # ============================================================
 
 if "transactions" not in st.session_state:
     st.session_state["transactions"] = []
 
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-with st.sidebar:
-
-    st.title("💰 MoneyMate")
-
-    st.markdown("---")
-
-    st.subheader("Menu")
-
-    menu = st.radio(
-        "Select Page",
-        [
-            "🏠 Dashboard",
-            "💵 Add Income",
-            "💸 Add Expense",
-            "📋 Transactions"
-        ]
-    )
-
-    st.markdown("---")
-
-    # Logout
-    if st.button("🚪 Logout", use_container_width=True):
-
-        try:
-            supabase.auth.sign_out()
-        except Exception:
-            pass
-
-        st.session_state.pop("user", None)
-
-        st.switch_page("Login.py")
-
-
-# ============================================================
-# HEADER
-# ============================================================
-
-st.title("💰 MoneyMate Dashboard")
-
-if hasattr(user, "email"):
-    st.write(f"Welcome, **{user.email}** 👋")
-else:
-    st.write("Welcome to MoneyMate 👋")
-
+transactions = st.session_state["transactions"]
 
 # ============================================================
 # CALCULATE TOTALS
 # ============================================================
 
-transactions = st.session_state["transactions"]
-
 total_income = sum(
     float(t["Amount"])
+    for t in transactions
+    if t["Type"] == "Income"
+)
+
+total_expense = sum(
+    float(t["Amount"])
+    for t in transactions
+    if t["Type"] == "Expense"
+)
+
+balance = total_income - total_expense
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+st.sidebar.title("💰 MoneyMate")
+
+menu = st.sidebar.radio(
+    "Menu",
+    [
+        "Dashboard",
+        "Add Income",
+        "Add Expense",
+        "Transactions"
+    ]
+)
+
+st.sidebar.markdown("---")
+
+if st.sidebar.button("🚪 Logout"):
+
+    st.session_state.pop("user", None)
+
+    st.switch_page("pages/Login.py")
+
+# ============================================================
+# DASHBOARD
+# ============================================================
+
+if menu == "Dashboard":
+
+    st.title("💰 MoneyMate Dashboard")
+
+    if hasattr(user, "email"):
+        st.write(f"Welcome, **{user.email}** 👋")
+
+    st.markdown("---")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "💵 Total Income",
+            f"₹ {total_income:,.2f}"
+        )
+
+    with col2:
+        st.metric(
+            "💸 Total Expense",
+            f"₹ {total_expense:,.2f}"
+        )
+
+    with col3:
+        st.metric(
+            "💰 Balance",
+            f"₹ {balance:,.2f}"
+        )
+
+    st.markdown("---")
+
+    st.subheader("📊 Financial Summary")
+
+    if transactions:
+        st.dataframe(
+            transactions[::-1],
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info(
+            "No transactions yet. "
+            "Add income or expense from the menu."
+        )
+
+# ============================================================
+# ADD INCOME
+# ============================================================
+
+elif menu == "Add Income":
+
+    st.title("💵 Add Income")
+
+    with st.form("income_form"):
+
+        amount = st.number_input(
+            "Amount (₹)",
+            min_value=0.0,
+            step=100.0
+        )
+
+        category = st.selectbox(
+            "Category",
+            [
+                "Salary",
+                "Business",
+                "Freelance",
+                "Investment",
+                "Gift",
+                "Other"
+            ]
+        )
+
+        description = st.text_input(
+            "Description"
+        )
+
+        date = st.date_input(
+            "Date"
+        )
+
+        submit = st.form_submit_button(
+            "➕ Add Income"
+        )
+
+        if submit:
+
+            if amount <= 0:
+                st.error("Enter a valid amount.")
+            else:
+
+                st.session_state["transactions"].append({
+                    "Date": str(date),
+                    "Type": "Income",
+                    "Category": category,
+                    "Description": description,
+                    "Amount": float(amount)
+                })
+
+                st.success("Income added successfully! ✅")
+
+                st.rerun()
+
+# ============================================================
+# ADD EXPENSE
+# ============================================================
+
+elif menu == "Add Expense":
+
+    st.title("💸 Add Expense")
+
+    with st.form("expense_form"):
+
+        amount = st.number_input(
+            "Amount (₹)",
+            min_value=0.0,
+            step=100.0
+        )
+
+        category = st.selectbox(
+            "Category",
+            [
+                "Food",
+                "Travel",
+                "Shopping",
+                "Bills",
+                "Education",
+                "Entertainment",
+                "Medical",
+                "Rent",
+                "Other"
+            ]
+        )
+
+        description = st.text_input(
+            "Description"
+        )
+
+        date = st.date_input(
+            "Date"
+        )
+
+        submit = st.form_submit_button(
+            "➖ Add Expense"
+        )
+
+        if submit:
+
+            if amount <= 0:
+                st.error("Enter a valid amount.")
+            else:
+
+                st.session_state["transactions"].append({
+                    "Date": str(date),
+                    "Type": "Expense",
+                    "Category": category,
+                    "Description": description,
+                    "Amount": float(amount)
+                })
+
+                st.success("Expense added successfully! ✅")
+
+                st.rerun()
+
+# ============================================================
+# TRANSACTIONS
+# ============================================================
+
+elif menu == "Transactions":
+
+    st.title("📋 Transactions")
+
+    if transactions:
+
+        st.dataframe(
+            transactions[::-1],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("---")
+
+        if st.button("🗑️ Clear All Transactions"):
+
+            st.session_state["transactions"] = []
+
+            st.success("Transactions cleared.")
+
+            st.rerun()
+
+    else:
+
+        st.info("No transactions available.")
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown("---")
+
+st.caption(
+    f"MoneyMate • "
+    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+)    float(t["Amount"])
     for t in transactions
     if t["Type"] == "Income"
 )
