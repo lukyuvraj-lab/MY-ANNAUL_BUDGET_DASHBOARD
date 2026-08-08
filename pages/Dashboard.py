@@ -1,4 +1,8 @@
 import streamlit as st
+
+if "user" not in st.session_state:
+    st.switch_page("pages/Login.py")
+    st.stop()import streamlit as st
 from datetime import datetime
 
 # ============================================================
