@@ -28,7 +28,7 @@ st.set_page_config(
 
 SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
 
-SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTM"
 
 supabase = create_client(
     SUPABASE_URL,
