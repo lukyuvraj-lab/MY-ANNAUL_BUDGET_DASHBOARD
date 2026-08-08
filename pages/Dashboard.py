@@ -10,7 +10,6 @@ st.set_page_config(
 if "user" not in st.session_state:
     st.switch_page("pages/Login.py")
     st.stop()
-from datetime import datetime
 
 # ============================================================
 # PAGE CONFIG
