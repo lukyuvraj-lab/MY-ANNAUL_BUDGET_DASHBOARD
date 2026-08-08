@@ -1,8 +1,15 @@
 import streamlit as st
+from datetime import datetime
+
+st.set_page_config(
+    page_title="MoneyMate Dashboard",
+    page_icon="💰",
+    layout="wide"
+)
 
 if "user" not in st.session_state:
     st.switch_page("pages/Login.py")
-    st.stop()import streamlit as st
+    st.stop()
 from datetime import datetime
 
 # ============================================================
