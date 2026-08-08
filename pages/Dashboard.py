@@ -104,18 +104,18 @@ if menu == "Dashboard":
     transactions = st.session_state["transactions"]
 
     total_income = sum(
-        float(t["amount"])
-        for t in transactions
-        if t["type"] == "Income"
-    )
+    float(t["Amount"])
+    for t in transactions
+    if t["Type"] == "Income"
+)
 
-    total_expense = sum(
-        float(t["amount"])
-        for t in transactions
-        if t["type"] == "Expense"
-    )
+total_expense = sum(
+    float(t["Amount"])
+    for t in transactions
+    if t["Type"] == "Expense"
+)
 
-    balance = total_income - total_expense
+balance = total_income - total_expense
 
     col1, col2, col3 = st.columns(3)
 
