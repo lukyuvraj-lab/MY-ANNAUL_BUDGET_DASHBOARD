@@ -210,19 +210,31 @@ elif menu == "Add Expense":
         )
 
         category = st.selectbox(
-            "Category",
-            [
-                "Food",
-                "Travel",
-                "Shopping",
-                "Bills",
-                "Education",
-                "Entertainment",
-                "Medical",
-                "Rent",
-                "Other"
-            ]
-        )
+    "Category",
+    [
+        "Food",
+        "Travel",
+        "Shopping",
+        "Bills",
+        "Education",
+        "Entertainment",
+        "Medical",
+        "Rent",
+        "Groceries",
+        "Fuel",
+        "Electricity",
+        "Mobile Recharge",
+        "Internet",
+        "Subscriptions",
+        "Clothing",
+        "Household",
+        "Insurance",
+        "Personal Care",
+        "Gifts",
+        "EMI / Loan",
+        "Other"
+    ]
+)
 
         description = st.text_input(
             "Description"
