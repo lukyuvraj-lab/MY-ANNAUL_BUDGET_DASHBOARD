@@ -4,7 +4,7 @@ from supabase import create_client
 from datetime import date
 import streamlit as st
 
-if "user" in st.session_state:
+if "user" in st.session_state and st.session_state["user"]:
     st.switch_page("pages/Dashboard.py")
 else:
     st.switch_page("pages/Login.py")
