@@ -114,6 +114,181 @@ with col2:
 
                 st.error(
                     f"Sign Up failed: {e}"
+            )
+    st.subheader("📊 Financial Summary")
+
+    if transactions:
+        st.dataframe(
+            transactions[::-1],
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info(
+            "No transactions yet. "
+            "Add income or expense from the menu."
+        )
+
+# ============================================================
+# ADD INCOME
+# ============================================================
+
+elif menu == "Add Income":
+
+    st.title("💵 Add Income")
+
+    with st.form("income_form"):
+
+        amount = st.number_input(
+            "Amount (₹)",
+            min_value=0.0,
+            step=100.0
+        )
+
+        category = st.selectbox(
+            "Category",
+            [
+                "Salary",
+                "Business",
+                "Freelance",
+                "Investment",
+                "Gift",
+                "Other"
+            ]
+        )
+
+        description = st.text_input(
+            "Description"
+        )
+
+        date = st.date_input(
+            "Date"
+        )
+
+        submit = st.form_submit_button(
+            "➕ Add Income"
+        )
+
+        if submit:
+
+            if amount <= 0:
+                st.error("Enter a valid amount.")
+            else:
+
+                st.session_state["transactions"].append({
+                    "Date": str(date),
+                    "Type": "Income",
+                    "Category": category,
+                    "Description": description,
+                    "Amount": float(amount)
+                })
+
+                st.success("Income added successfully! ✅")
+
+                st.rerun()
+
+# ============================================================
+# ADD EXPENSE
+# ============================================================
+
+elif menu == "Add Expense":
+
+    st.title("💸 Add Expense")
+
+    with st.form("expense_form"):
+
+        amount = st.number_input(
+            "Amount (₹)",
+            min_value=0.0,
+            step=100.0
+        )
+
+        category = st.selectbox(
+            "Category",
+            [
+                "Food",
+                "Travel",
+                "Shopping",
+                "Bills",
+                "Education",
+                "Entertainment",
+                "Medical",
+                "Rent",
+                "Other"
+            ]
+        )
+
+        description = st.text_input(
+            "Description"
+        )
+
+        date = st.date_input(
+            "Date"
+        )
+
+        submit = st.form_submit_button(
+            "➖ Add Expense"
+        )
+
+        if submit:
+
+            if amount <= 0:
+                st.error("Enter a valid amount.")
+            else:
+
+                st.session_state["transactions"].append({
+                    "Date": str(date),
+                    "Type": "Expense",
+                    "Category": category,
+                    "Description": description,
+                    "Amount": float(amount)
+                })
+
+                st.success("Expense added successfully! ✅")
+
+                st.rerun()
+
+# ============================================================
+# TRANSACTIONS
+# ============================================================
+
+elif menu == "Transactions":
+
+    st.title("📋 Transactions")
+
+    if transactions:
+
+        st.dataframe(
+            transactions[::-1],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("---")
+
+        if st.button("🗑️ Clear All Transactions"):
+
+            st.session_state["transactions"] = []
+
+            st.success("Transactions cleared.")
+
+            st.rerun()
+
+    else:
+
+        st.info("No transactions available.")
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown("---")
+
+st.caption(
+    f"MoneyMate • "
+    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+    )                st.error(
+                    f"Sign Up failed: {e}"
                 )import streamlit as st
 from supabase import create_client
 
