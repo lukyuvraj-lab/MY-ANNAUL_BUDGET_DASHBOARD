@@ -3,15 +3,6 @@ from supabase import create_client
 from datetime import datetime
 
 # ============================================================
-# LOGIN CHECK
-# ============================================================
-
-if "user" not in st.session_state or st.session_state["user"] is None:
-    st.switch_page("pages/Login.py")
-    st.stop()
-
-
-# ============================================================
 # PAGE CONFIGURATION
 # ============================================================
 
@@ -23,12 +14,23 @@ st.set_page_config(
 
 
 # ============================================================
+# LOGIN CHECK
+# ============================================================
+
+if "user" not in st.session_state or st.session_state["user"] is None:
+    st.switch_page("Login.py")
+    st.stop()
+
+
+# ============================================================
 # SUPABASE
 # ============================================================
 
 SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
 
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTM"
+# IMPORTANT:
+# Put the same Supabase ANON KEY that you are using in Login.py
+SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"
 
 supabase = create_client(
     SUPABASE_URL,
@@ -37,12 +39,62 @@ supabase = create_client(
 
 
 # ============================================================
+# USER
+# ============================================================
+
+user = st.session_state["user"]
+
+
+# ============================================================
+# SESSION TRANSACTIONS
+# ============================================================
+
+if "transactions" not in st.session_state:
+    st.session_state["transactions"] = []
+
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+with st.sidebar:
+
+    st.title("💰 MoneyMate")
+
+    st.markdown("---")
+
+    st.subheader("Menu")
+
+    menu = st.radio(
+        "Select Page",
+        [
+            "🏠 Dashboard",
+            "💵 Add Income",
+            "💸 Add Expense",
+            "📋 Transactions"
+        ]
+    )
+
+    st.markdown("---")
+
+    # Logout
+    if st.button("🚪 Logout", use_container_width=True):
+
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
+
+        st.session_state.pop("user", None)
+
+        st.switch_page("Login.py")
+
+
+# ============================================================
 # HEADER
 # ============================================================
 
 st.title("💰 MoneyMate Dashboard")
-
-user = st.session_state["user"]
 
 if hasattr(user, "email"):
     st.write(f"Welcome, **{user.email}** 👋")
@@ -51,65 +103,33 @@ else:
 
 
 # ============================================================
-# LOGOUT
+# CALCULATE TOTALS
 # ============================================================
 
-with st.sidebar:
-    st.header("💰 MoneyMate")
+transactions = st.session_state["transactions"]
 
-    if st.button("🚪 Logout", use_container_width=True):
-        try:
-            supabase.auth.sign_out()
-        except Exception:
-            pass
-
-        st.session_state.pop("user", None)
-        st.switch_page("pages/Login.py")
-
-
-# ============================================================
-# DASHBOARD MENU
-# ============================================================
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Menu")
-
-menu = st.sidebar.radio(
-    "Select",
-    [
-        "Dashboard",
-        "Add Income",
-        "Add Expense",
-        "Transactions"
-    ]
-)
-
-
-# ============================================================
-# SESSION DATA
-# ============================================================
-
-if "transactions" not in st.session_state:
-    st.session_state["transactions"] = []
-
-
-# ============================================================
-# DASHBOARD
-# ============================================================
-
-if menu == "Dashboard":
-
-    st.subheader("📊 Financial Overview")
-
-    transactions = st.session_state["transactions"]
-
-    total_income = sum(
+total_income = sum(
     float(t["Amount"])
     for t in transactions
     if t["Type"] == "Income"
 )
 
 total_expense = sum(
+    float(t["Amount"])
+    for t in transactions
+    if t["Type"] == "Expense"
+)
+
+balance = total_income - total_expense
+
+
+# ============================================================
+# DASHBOARD
+# ============================================================
+
+if menu == "🏠 Dashboard":
+
+    sttotal_expense = sum(
     float(t["Amount"])
     for t in transactions
     if t["Type"] == "Expense"
