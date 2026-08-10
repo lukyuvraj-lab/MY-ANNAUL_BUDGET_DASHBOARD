@@ -23,6 +23,9 @@ if "user" not in st.session_state:
 st.title("💰 MoneyMate Dashboard")
 st.caption("Your clean financial overview")
 
+# Get logged-in user details to assign keys automatically
+user_id = st.session_state["user"].id if hasattr(st.session_state["user"], "id") else st.session_state["user"].get("id")
+
 # -------------------------------------------------
 # 1. FETCH & PROCESS DATABASE DATA
 # -------------------------------------------------
@@ -71,7 +74,7 @@ if not df.empty and not df[df["type"].str.lower() == "expense"].empty:
         .sort_values("amount", ascending=False)
     )
 
-    chart_col, table_col = st.columns([3, 2])
+    chart_col, table_col = st.columns()
     
     with chart_col:
         fig = px.pie(
@@ -96,7 +99,7 @@ else:
 st.divider()
 
 # -------------------------------------------------
-# 4. ACTION CENTER: ADD TRANSACTIONS DIRECTLY TO SUPABASE
+# 4. ACTION CENTER: ADD TRANSACTIONS
 # -------------------------------------------------
 st.subheader("⚡ Quick Actions")
 action_tab1, action_tab2 = st.tabs(["💵 Record New Income", "💸 Record New Expense"])
@@ -105,17 +108,18 @@ action_tab1, action_tab2 = st.tabs(["💵 Record New Income", "💸 Record New E
 with action_tab1:
     with st.form("inc_form", clear_on_submit=True):
         inc_cols = st.columns(4)
-        inc_amt = inc_cols[0].number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
-        inc_cat = inc_cols[1].selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
-        inc_note = inc_cols[2].text_input("Note / Description", key="inc_n")
-        inc_date = inc_cols[3].date_input("Date", key="inc_d")
+        inc_amt = inc_cols.number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
+        inc_cat = inc_cols.selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
+        inc_note = inc_cols.text_input("Note / Description", key="inc_n")
+        inc_date = inc_cols.date_input("Date", key="inc_d")
         
-                if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
+        if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
             if inc_amt <= 0:
                 st.error("Please log an amount greater than ₹0.")
             else:
                 try:
                     supabase.table("transactions").insert({
+                        "user_id": user_id,  # Protects RLS requirements
                         "date": str(inc_date),
                         "type": "Income",
                         "category": inc_cat,
@@ -125,28 +129,29 @@ with action_tab1:
                     st.success("Income synced to Supabase successfully! 🎉")
                     st.rerun()
                 except Exception as db_error:
-                    st.error("❌ Database Write Failure!")
-                    st.code(str(db_error)) # This prints the explicit field issue
+                    st.error("❌ Database Write Failure! Check column names or RLS policies.")
+                    st.code(str(db_error))
 
 # Record Expense Tab
 with action_tab2:
     with st.form("exp_form", clear_on_submit=True):
         exp_cols = st.columns(4)
-        exp_amt = exp_cols[0].number_input("Amount (₹)", min_value=0.0, step=100.0, key="exp_a")
-        exp_cat = exp_cols[1].selectbox("Category", [
+        exp_amt = exp_cols.number_input("Amount (₹)", min_value=0.0, step=100.0, key="exp_a")
+        exp_cat = exp_cols.selectbox("Category", [
             "Food", "Travel", "Shopping", "Bills", "Education", "Entertainment",
             "Medical", "Rent", "Groceries", "Fuel", "Electricity", "Mobile Recharge",
             "Internet", "Subscriptions", "Clothing", "Household", "Insurance", "Other"
         ], key="exp_c")
-        exp_note = exp_cols[2].text_input("Note / Description", key="exp_n")
-        exp_date = exp_cols[3].date_input("Date", key="exp_d")
+        exp_note = exp_cols.text_input("Note / Description", key="exp_n")
+        exp_date = exp_cols.date_input("Date", key="exp_d")
         
-               if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
+        if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
             if exp_amt <= 0:
                 st.error("Please log an amount greater than ₹0.")
             else:
                 try:
                     supabase.table("transactions").insert({
+                        "user_id": user_id,  # Protects RLS requirements
                         "date": str(exp_date),
                         "type": "Expense",
                         "category": exp_cat,
@@ -156,8 +161,8 @@ with action_tab2:
                     st.success("Expense synced to Supabase successfully! 🛡️")
                     st.rerun()
                 except Exception as db_error:
-                    st.error("❌ Database Write Failure!")
-                    st.code(str(db_error)) # This prints the explicit field issue
+                    st.error("❌ Database Write Failure! Check column names or RLS policies.")
+                    st.code(str(db_error))
 
 st.divider()
 
@@ -168,7 +173,8 @@ st.subheader("📋 Ledger History")
 
 if not df.empty:
     display_columns = ["date", "type", "category", "amount", "note"]
-    clean_history = df[display_columns].copy()
+    available_columns = [col for col in display_columns if col in df.columns]
+    clean_history = df[available_columns].copy()
     
     st.dataframe(
         clean_history.rename(columns=str.title), 
