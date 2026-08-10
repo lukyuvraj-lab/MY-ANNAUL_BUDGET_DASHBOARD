@@ -1,52 +1,258 @@
 import streamlit as st
 import pandas as pd
-from supabase import create_client
+from datetime import date
 
-SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
+from utils.supabase_client import supabase
 
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# =========================================================
+# PAGE CONFIG
+# =========================================================
+st.set_page_config(
+    page_title="MoneyMate Transactions",
+    page_icon="📋",
+    layout="wide"
+)
 
-st.set_page_config(page_title="Transactions", layout="wide")
 
+# =========================================================
+# LOGIN CHECK
+# =========================================================
+if "user" not in st.session_state:
+    st.warning("Please log in first.")
+    st.stop()
+
+
+user = st.session_state["user"]
+
+
+# =========================================================
+# HEADER
+# =========================================================
 st.title("📋 Transactions")
+st.caption("Add, edit and delete your transactions")
 
-# Fetch data
-response = supabase.table("transactions").select("*").execute()
-data = response.data
 
-if data:
-    df = pd.DataFrame(data)
+# =========================================================
+# ADD TRANSACTION
+# =========================================================
+st.subheader("➕ Add Transaction")
 
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.sort_values("date", ascending=False)
+with st.form("add_transaction_form"):
 
-    st.subheader("All Transactions")
-    st.dataframe(df, use_container_width=True)
+    col1, col2 = st.columns(2)
 
-    st.divider()
+    with col1:
 
-    st.subheader("🗑️ Delete Transaction")
+        trans_date = st.date_input(
+            "Date",
+            value=date.today()
+        )
 
-    transaction_options = [
-        f"{row['id']} | {row['type']} | ₹{row['amount']} | {row['category']}"
-        for _, row in df.iterrows()
-    ]
+        trans_type = st.selectbox(
+            "Type",
+            ["Income", "Expense"]
+        )
 
-    selected = st.selectbox(
-        "Select transaction to delete",
-        transaction_options
+        amount = st.number_input(
+            "Amount",
+            min_value=0.0,
+            step=100.0
+        )
+
+    with col2:
+
+        category = st.text_input(
+            "Category",
+            placeholder="Food, Salary, Travel..."
+        )
+
+        account = st.selectbox(
+            "Account",
+            [
+                "Cash",
+                "Bank",
+                "UPI",
+                "Credit Card"
+            ]
+        )
+
+        note = st.text_input(
+            "Note",
+            placeholder="Optional"
+        )
+
+    submitted = st.form_submit_button(
+        "💾 Save Transaction",
+        use_container_width=True
     )
 
-    if st.button("Delete Transaction", type="primary"):
-        transaction_id = int(selected.split(" | ")[0])
 
-        supabase.table("transactions").delete().eq("id", transaction_id).execute()
+# =========================================================
+# SAVE TRANSACTION
+# =========================================================
+if submitted:
 
-        st.success(f"Transaction {transaction_id} deleted successfully!")
+    if amount <= 0:
+        st.error("Amount must be greater than 0.")
+
+    elif not category.strip():
+        st.error("Please enter a category.")
+
+    else:
+
+        try:
+
+            supabase.table("transactions").insert(
+                {
+                    "user_id": user.id,
+                    "date": str(trans_date),
+                    "type": trans_type,
+                    "amount": amount,
+                    "category": category.strip(),
+                    "account": account,
+                    "note": note.strip()
+                }
+            ).execute()
+
+            st.success("✅ Transaction saved successfully!")
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(
+                f"Unable to save transaction: {e}"
+            )
+
+
+st.divider()
+
+
+# =========================================================
+# LOAD USER TRANSACTIONS
+# =========================================================
+try:
+
+    response = (
+        supabase
+        .table("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", desc=True)
+        .execute()
+    )
+
+    df = pd.DataFrame(response.data)
+
+except Exception as e:
+
+    st.error(
+        f"Unable to load transactions: {e}"
+    )
+
+    st.stop()
+
+
+# =========================================================
+# NO TRANSACTIONS
+# =========================================================
+if df.empty:
+
+    st.info(
+        "📋 No transactions yet. "
+        "Add your first transaction above."
+    )
+
+    st.stop()
+
+
+# =========================================================
+# FORMAT DATA
+# =========================================================
+df["amount"] = pd.to_numeric(
+    df["amount"],
+    errors="coerce"
+).fillna(0)
+
+
+# =========================================================
+# TRANSACTION TABLE
+# =========================================================
+st.subheader("📋 Your Transactions")
+
+display_columns = [
+    "id",
+    "date",
+    "type",
+    "category",
+    "account",
+    "amount",
+    "note"
+]
+
+available_columns = [
+    column
+    for column in display_columns
+    if column in df.columns
+]
+
+display_df = df[
+    available_columns
+].copy()
+
+
+display_df["amount"] = display_df[
+    "amount"
+].apply(
+    lambda x: f"₹{x:,.2f}"
+)
+
+
+st.dataframe(
+    display_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+st.divider()
+
+
+# =========================================================
+# DELETE TRANSACTION
+# =========================================================
+st.subheader("🗑️ Delete Transaction")
+
+transaction_ids = df["id"].tolist()
+
+selected_id = st.selectbox(
+    "Select transaction",
+    transaction_ids
+)
+
+
+if st.button(
+    "🗑️ Delete Selected Transaction",
+    use_container_width=True
+):
+
+    try:
+
+        supabase.table("transactions") \
+            .delete() \
+            .eq("id", selected_id) \
+            .eq("user_id", user.id) \
+            .execute()
+
+        st.success(
+            "✅ Transaction deleted."
+        )
+
         st.rerun()
 
-else:
-    st.info("No transactions found.")
+    except Exception as e:
+
+        st.error(
+            f"Unable to delete transaction: {e}"
+        )
