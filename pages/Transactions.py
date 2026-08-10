@@ -115,42 +115,22 @@ st.divider()
 # =========================================================
 # CATEGORY LIST
 # =========================================================
-categories = [
-    "Bakery",
-    "Beating",
-    "Bike",
-    "Bills",
-    "Business Income",
-    "Chiti",
-    "Credit Card",
-    "Entertainment",
-    "Education",
-    "Electricity",
-    "EMI",
-    "Gifts",
-    "Groceries/vegetable's",
-    "Investment",
-    "Medical",
-    "Home",
-    "Hotel/Dhaba",
-    "Insurance",
-    "Internet",
-    "Loan",
-    "Fuel",
-    "Rent",
-    "Recharge",
-    "Saloon",
+# Income and Expense have separate category lists.
+income_categories = [
     "Salary",
-    "Shopping",
-    "Subscriptions",
-    "Shop",  
+    "Business",
+    "Interest",
+    "Balance Last Year",
+    "Chit Fund",
+    "Other Income"
+]
+
+expense_categories = [
+    "Food",
     "Travel",
     "Transport",
-    "Trip",
-    "Recharge",
-    "Mobile",
-    "Utensils",
-    "Other"
+    "Shopping",
+    "Other Expense"
 ]
 
 
@@ -204,9 +184,16 @@ with st.form("add_transaction_form"):
     # -----------------------------------------------------
     with col2:
 
+        # Category list changes automatically with transaction type
+        category_options = (
+            income_categories
+            if trans_type == "Income"
+            else expense_categories
+        )
+
         category = st.selectbox(
             "Category",
-            categories
+            category_options
         )
 
         account = st.selectbox(
@@ -367,9 +354,24 @@ if not df.empty:
 
     with edit_col2:
 
-        edit_category = st.text_input(
+        edit_category_options = (
+            income_categories
+            if edit_type == "Income"
+            else expense_categories
+        )
+
+        current_category = str(selected_row["category"])
+
+        category_index = (
+            edit_category_options.index(current_category)
+            if current_category in edit_category_options
+            else 0
+        )
+
+        edit_category = st.selectbox(
             "Category",
-            value=str(selected_row["category"]),
+            edit_category_options,
+            index=category_index,
             key="edit_category"
         )
 
