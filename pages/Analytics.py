@@ -20,7 +20,7 @@ st.caption("Personal Finance Analytics Dashboard")
 # CATEGORY LIST
 # ============================================================
 
-income_categories = sorted([
+income_categories = [
     "Salary",
     "Business",
     "Interest",
@@ -37,7 +37,7 @@ income_categories = sorted([
     "Other Income"
 ]
 
-expense_categories = sorted([
+expense_categories = [
     "Food & Dining",
     "Travel",
     "Transportation",
@@ -730,3 +730,4 @@ with st.expander("📄 View Transactions"):
         use_container_width=True,
         hide_index=True
     )
+
