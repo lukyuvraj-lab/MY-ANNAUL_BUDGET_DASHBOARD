@@ -69,33 +69,44 @@ except Exception as e:
 # =========================================================
 if df.empty:
 
+    total_income = 0.0
+    total_expense = 0.0
     balance = 0.0
 
 else:
 
+    # Clean amount values even if Supabase returns them as text.
+    df["amount"] = (
+        df["amount"]
+        .astype(str)
+        .str.replace("₹", "", regex=False)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+    )
     df["amount"] = pd.to_numeric(
         df["amount"],
         errors="coerce"
-    ).fillna(0)
+    ).fillna(0.0)
 
-    df["type"] = (
+    # Clean transaction type without changing the displayed value.
+    df["type_clean"] = (
         df["type"]
         .astype(str)
         .str.strip()
-        .str.lower()
+        .str.casefold()
     )
 
     total_income = df.loc[
-        df["type"] == "income",
+        df["type_clean"] == "income",
         "amount"
     ].sum()
 
     total_expense = df.loc[
-        df["type"] == "expense",
+        df["type_clean"] == "expense",
         "amount"
     ].sum()
 
-    balance = total_income - total_expense
+    balance = float(total_income - total_expense)
 
 
 # =========================================================
@@ -106,6 +117,10 @@ st.subheader("🏦 Current Balance")
 st.metric(
     "Balance",
     f"₹{balance:,.2f}"
+)
+
+st.caption(
+    f"Income: ₹{total_income:,.2f}  |  Expense: ₹{total_expense:,.2f}"
 )
 
 
@@ -378,7 +393,7 @@ if not df.empty:
             ["Income", "Expense"],
             index=(
                 0
-                if selected_row["type"] == "Income"
+                if str(selected_row["type"]).strip().casefold() == "income"
                 else 1
             ),
             key="edit_type"
