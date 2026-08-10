@@ -312,29 +312,45 @@ total_remaining = (
 
 
 # =========================================================
-# SUMMARY
+# BUDGET VS ACTUAL SPENDING
 # =========================================================
 st.divider()
 
-st.subheader("📊 Budget Overview")
+st.subheader("📊 Budget vs Actual")
 
-c1, c2, c3 = st.columns(3)
+summary_data = []
 
-c1.metric(
-    "💰 Total Budget",
-    f"₹{total_budget:,.2f}"
+for index, (_, row) in enumerate(budget_df.iterrows(), start=1):
+
+    category_name = row["category"]
+
+    budget = float(row["amount"])
+
+    actual = float(
+        spent_by_category.get(
+            category_name,
+            0
+        )
+    )
+
+    remaining = budget - actual
+
+    summary_data.append({
+        "Budget No.": index,
+        "Category": category_name,
+        "Budget": f"₹{budget:,.0f}",
+        "Actual": f"₹{actual:,.0f}",
+        "Remaining": f"₹{remaining:,.0f}"
+    })
+
+
+summary_df = pd.DataFrame(summary_data)
+
+st.dataframe(
+    summary_df,
+    use_container_width=True,
+    hide_index=True
 )
-
-c2.metric(
-    "💸 Total Spent",
-    f"₹{total_spent:,.2f}"
-)
-
-c3.metric(
-    "🏦 Remaining",
-    f"₹{total_remaining:,.2f}"
-)
-
 
 # =========================================================
 # CATEGORY BUDGETS
