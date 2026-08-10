@@ -110,19 +110,23 @@ with action_tab1:
         inc_note = inc_cols[2].text_input("Note / Description", key="inc_n")
         inc_date = inc_cols[3].date_input("Date", key="inc_d")
         
-        if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
+                if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
             if inc_amt <= 0:
                 st.error("Please log an amount greater than ₹0.")
             else:
-                supabase.table("transactions").insert({
-                    "date": str(inc_date),
-                    "type": "Income",
-                    "category": inc_cat,
-                    "amount": float(inc_amt),
-                    "note": inc_note
-                }).execute()
-                st.success("Income synced to Supabase successfully! 🎉")
-                st.rerun()
+                try:
+                    supabase.table("transactions").insert({
+                        "date": str(inc_date),
+                        "type": "Income",
+                        "category": inc_cat,
+                        "amount": float(inc_amt),
+                        "note": inc_note
+                    }).execute()
+                    st.success("Income synced to Supabase successfully! 🎉")
+                    st.rerun()
+                except Exception as db_error:
+                    st.error("❌ Database Write Failure!")
+                    st.code(str(db_error)) # This prints the explicit field issue
 
 # Record Expense Tab
 with action_tab2:
@@ -137,19 +141,23 @@ with action_tab2:
         exp_note = exp_cols[2].text_input("Note / Description", key="exp_n")
         exp_date = exp_cols[3].date_input("Date", key="exp_d")
         
-        if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
+               if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
             if exp_amt <= 0:
                 st.error("Please log an amount greater than ₹0.")
             else:
-                supabase.table("transactions").insert({
-                    "date": str(exp_date),
-                    "type": "Expense",
-                    "category": exp_cat,
-                    "amount": float(exp_amt),
-                    "note": exp_note
-                }).execute()
-                st.success("Expense synced to Supabase successfully! 🛡️")
-                st.rerun()
+                try:
+                    supabase.table("transactions").insert({
+                        "date": str(exp_date),
+                        "type": "Expense",
+                        "category": exp_cat,
+                        "amount": float(exp_amt),
+                        "note": exp_note
+                    }).execute()
+                    st.success("Expense synced to Supabase successfully! 🛡️")
+                    st.rerun()
+                except Exception as db_error:
+                    st.error("❌ Database Write Failure!")
+                    st.code(str(db_error)) # This prints the explicit field issue
 
 st.divider()
 
