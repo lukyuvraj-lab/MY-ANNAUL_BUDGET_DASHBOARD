@@ -105,13 +105,17 @@ st.subheader("⚡ Quick Actions")
 action_tab1, action_tab2 = st.tabs(["💵 Record New Income", "💸 Record New Expense"])
 
 # Record Income Tab
+# Record Income Tab
 with action_tab1:
     with st.form("inc_form", clear_on_submit=True):
-        inc_cols = st.columns(4)
-        inc_amt = inc_cols.number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
-        inc_cat = inc_cols.selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
-        inc_note = inc_cols.text_input("Note / Description", key="inc_n")
-        inc_date = inc_cols.date_input("Date", key="inc_d")
+        # Unpack the 4 columns individually instead of assigning to a single variable
+        col_a, col_b, col_c, col_d = st.columns(4)
+        
+        # Place each input inside its respective column object
+        inc_amt = col_a.number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
+        inc_cat = col_b.selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
+        inc_note = col_c.text_input("Note / Description", key="inc_n")
+        inc_date = col_d.date_input("Date", key="inc_d")
         
         if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
             if inc_amt <= 0:
@@ -119,7 +123,7 @@ with action_tab1:
             else:
                 try:
                     supabase.table("transactions").insert({
-                        "user_id": user_id,  # Protects RLS requirements
+                        "user_id": user_id,
                         "date": str(inc_date),
                         "type": "Income",
                         "category": inc_cat,
@@ -135,16 +139,38 @@ with action_tab1:
 # Record Expense Tab
 with action_tab2:
     with st.form("exp_form", clear_on_submit=True):
-        exp_cols = st.columns(4)
-        exp_amt = exp_cols.number_input("Amount (₹)", min_value=0.0, step=100.0, key="exp_a")
-        exp_cat = exp_cols.selectbox("Category", [
+        # Unpack the 4 columns individually here as well
+        col_e, col_f, col_g, col_h = st.columns(4)
+        
+        # Place each input inside its respective column object
+        exp_amt = col_e.number_input("Amount (₹)", min_value=0.0, step=100.0, key="exp_a")
+        exp_cat = col_f.selectbox("Category", [
             "Food", "Travel", "Shopping", "Bills", "Education", "Entertainment",
             "Medical", "Rent", "Groceries", "Fuel", "Electricity", "Mobile Recharge",
             "Internet", "Subscriptions", "Clothing", "Household", "Insurance", "Other"
         ], key="exp_c")
-        exp_note = exp_cols.text_input("Note / Description", key="exp_n")
-        exp_date = exp_cols.date_input("Date", key="exp_d")
+        exp_note = col_g.text_input("Note / Description", key="exp_n")
+        exp_date = col_h.date_input("Date", key="exp_d")
         
+        if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
+            if exp_amt <= 0:
+                st.error("Please log an amount greater than ₹0.")
+            else:
+                try:
+                    supabase.table("transactions").insert({
+                        "user_id": user_id,
+                        "date": str(exp_date),
+                        "type": "Expense",
+                        "category": exp_cat,
+                        "amount": float(exp_amt),
+                        "note": exp_note
+                    }).execute()
+                    st.success("Expense synced to Supabase successfully! 🛡️")
+                    st.rerun()
+                except Exception as db_error:
+                    st.error("❌ Database Write Failure! Check column names or RLS policies.")
+                    st.code(str(db_error))
+
         if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
             if exp_amt <= 0:
                 st.error("Please log an amount greater than ₹0.")
