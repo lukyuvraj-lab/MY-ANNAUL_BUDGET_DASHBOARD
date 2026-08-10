@@ -329,16 +329,151 @@ else:
 st.divider()
 
 
-# =========================================================
-# DELETE TRANSACTION
-# =========================================================
+# -----------------------------
+# EDIT TRANSACTION
+# -----------------------------
 if not df.empty:
+
+    st.divider()
+
+    st.subheader("✏️ Edit Transaction")
+
+    selected_edit_id = st.selectbox(
+        "Select transaction to edit",
+        df["id"].tolist(),
+        key="edit_transaction"
+    )
+
+    selected_row = df[
+        df["id"] == selected_edit_id
+    ].iloc[0]
+
+    edit_col1, edit_col2 = st.columns(2)
+
+    with edit_col1:
+
+        edit_date = st.date_input(
+            "Date",
+            value=pd.to_datetime(
+                selected_row["date"]
+            ).date(),
+            key="edit_date"
+        )
+
+        edit_type = st.selectbox(
+            "Type",
+            ["Income", "Expense"],
+            index=(
+                0
+                if selected_row["type"] == "Income"
+                else 1
+            ),
+            key="edit_type"
+        )
+
+        edit_amount = st.number_input(
+            "Amount",
+            min_value=0.0,
+            value=float(selected_row["amount"]),
+            key="edit_amount"
+        )
+
+    with edit_col2:
+
+        edit_category = st.text_input(
+            "Category",
+            value=str(selected_row["category"]),
+            key="edit_category"
+        )
+
+        accounts = [
+            "Cash",
+            "Bank",
+            "UPI",
+            "Credit Card"
+        ]
+
+        current_account = str(
+            selected_row["account"]
+        )
+
+        account_index = (
+            accounts.index(current_account)
+            if current_account in accounts
+            else 0
+        )
+
+        edit_account = st.selectbox(
+            "Account",
+            accounts,
+            index=account_index,
+            key="edit_account"
+        )
+
+        edit_note = st.text_input(
+            "Note",
+            value=str(selected_row.get("note", "")),
+            key="edit_note"
+        )
+
+    if st.button(
+        "✏️ Update Transaction",
+        use_container_width=True
+    ):
+
+        if edit_amount <= 0:
+            st.error(
+                "Amount must be greater than 0."
+            )
+
+        elif not edit_category.strip():
+            st.error(
+                "Please enter a category."
+            )
+
+        else:
+
+            try:
+
+                supabase.table("transactions") \
+                    .update({
+                        "date": str(edit_date),
+                        "type": edit_type,
+                        "amount": edit_amount,
+                        "category": edit_category.strip(),
+                        "account": edit_account,
+                        "note": edit_note.strip()
+                    }) \
+                    .eq("id", selected_edit_id) \
+                    .eq("user_id", user.id) \
+                    .execute()
+
+                st.success(
+                    "✅ Transaction updated successfully!"
+                )
+
+                st.rerun()
+
+            except Exception as e:
+
+                st.error(
+                    f"Update failed: {e}"
+                )
+
+
+# -----------------------------
+# DELETE TRANSACTION
+# -----------------------------
+if not df.empty:
+
+    st.divider()
 
     st.subheader("🗑️ Delete Transaction")
 
-    selected_id = st.selectbox(
+    selected_delete_id = st.selectbox(
         "Select transaction to delete",
-        df["id"].tolist()
+        df["id"].tolist(),
+        key="delete_transaction"
     )
 
     if st.button(
@@ -348,17 +483,14 @@ if not df.empty:
 
         try:
 
-            (
-                supabase
-                .table("transactions")
-                .delete()
-                .eq("id", selected_id)
-                .eq("user_id", user.id)
+            supabase.table("transactions") \
+                .delete() \
+                .eq("id", selected_delete_id) \
+                .eq("user_id", user.id) \
                 .execute()
-            )
 
             st.success(
-                "✅ Transaction deleted successfully."
+                "✅ Transaction deleted."
             )
 
             st.rerun()
