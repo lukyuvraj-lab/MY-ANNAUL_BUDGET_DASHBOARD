@@ -188,6 +188,21 @@ accounts = [
 # =========================================================
 st.subheader("➕ Add Transaction")
 
+# Type is OUTSIDE the form.
+# This makes Streamlit rerun immediately when Income/Expense changes,
+# so the Category dropdown changes immediately too.
+trans_type = st.selectbox(
+    "Type",
+    ["Income", "Expense"],
+    key="new_transaction_type"
+)
+
+category_options = (
+    income_categories
+    if trans_type == "Income"
+    else expense_categories
+)
+
 with st.form("add_transaction_form"):
 
     col1, col2 = st.columns(2)
@@ -202,14 +217,6 @@ with st.form("add_transaction_form"):
             value=date.today()
         )
 
-        trans_type = st.selectbox(
-            "Type",
-            [
-                "Income",
-                "Expense"
-            ]
-        )
-
         amount = st.number_input(
             "Amount",
             min_value=0.0,
@@ -222,16 +229,10 @@ with st.form("add_transaction_form"):
     # -----------------------------------------------------
     with col2:
 
-        # Category list changes automatically with transaction type
-        category_options = (
-            income_categories
-            if trans_type == "Income"
-            else expense_categories
-        )
-
         category = st.selectbox(
             "Category",
-            category_options
+            category_options,
+            key="new_transaction_category"
         )
 
         account = st.selectbox(
