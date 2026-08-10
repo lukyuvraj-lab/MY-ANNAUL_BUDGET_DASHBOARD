@@ -271,4 +271,211 @@ display_monthly["Savings %"] = (
 st.dataframe(
     display_monthly,
     use_container_width=True,
-   
+    hide_index=True
+)
+
+
+# =========================================================
+# MONTHLY INCOME VS EXPENSE CHART
+# =========================================================
+st.divider()
+
+st.subheader(
+    "📈 Monthly Income vs Expense"
+)
+
+chart_df = monthly_df.melt(
+    id_vars=["Month"],
+    value_vars=[
+        "Income",
+        "Expense"
+    ],
+    var_name="Type",
+    value_name="Amount"
+)
+
+
+fig_monthly = px.bar(
+    chart_df,
+    x="Month",
+    y="Amount",
+    color="Type",
+    barmode="group",
+    title=f"{selected_year} Monthly Income vs Expense"
+)
+
+fig_monthly.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Amount (₹)",
+    legend_title="",
+    hovermode="x unified"
+)
+
+st.plotly_chart(
+    fig_monthly,
+    use_container_width=True
+)
+
+
+# =========================================================
+# EXPENSE BY CATEGORY
+# =========================================================
+st.divider()
+
+st.subheader(
+    "🥧 Expense by Category"
+)
+
+expense_year_df = year_df[
+    year_df["type"] == "Expense"
+]
+
+if expense_year_df.empty:
+
+    st.info(
+        "No expenses recorded for this year."
+    )
+
+else:
+
+    category_df = (
+        expense_year_df
+        .groupby("category")["amount"]
+        .sum()
+        .reset_index()
+        .sort_values(
+            "amount",
+            ascending=False
+        )
+    )
+
+    fig_category = px.pie(
+        category_df,
+        names="category",
+        values="amount",
+        title=f"{selected_year} Expense by Category",
+        hole=0.35
+    )
+
+    st.plotly_chart(
+        fig_category,
+        use_container_width=True
+    )
+
+
+# =========================================================
+# TRANSACTION SUMMARY
+# =========================================================
+st.divider()
+
+st.subheader(
+    "📋 Transactions for Selected Year"
+)
+
+year_display_df = year_df[
+    [
+        "date",
+        "type",
+        "amount",
+        "category",
+        "account",
+        "note"
+    ]
+].copy()
+
+year_display_df["date"] = (
+    year_display_df["date"]
+    .dt.strftime("%d-%m-%Y")
+)
+
+st.dataframe(
+    year_display_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# =========================================================
+# EXCEL EXPORT
+# =========================================================
+st.divider()
+
+st.subheader(
+    "📤 Export Report"
+)
+
+
+def create_excel():
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(
+        output,
+        engine="openpyxl"
+    ) as writer:
+
+        # Year summary
+        summary_df = pd.DataFrame({
+            "Metric": [
+                "Year",
+                "Total Income",
+                "Total Expense",
+                "Balance",
+                "Savings %"
+            ],
+            "Value": [
+                selected_year,
+                income,
+                expense,
+                balance,
+                savings
+            ]
+        })
+
+        summary_df.to_excel(
+            writer,
+            sheet_name="Summary",
+            index=False
+        )
+
+        # Month-wise report
+        monthly_df.to_excel(
+            writer,
+            sheet_name="Monthly Report",
+            index=False
+        )
+
+        # Category report
+        if not expense_year_df.empty:
+
+            category_df.to_excel(
+                writer,
+                sheet_name="Expense by Category",
+                index=False
+            )
+
+        # Transactions
+        year_df.to_excel(
+            writer,
+            sheet_name="Transactions",
+            index=False
+        )
+
+    output.seek(0)
+
+    return output
+
+
+excel_file = create_excel()
+
+
+st.download_button(
+    label="📥 Download Excel Report",
+    data=excel_file,
+    file_name=f"MoneyMate_Report_{selected_year}.xlsx",
+    mime=(
+        "application/vnd.openxmlformats-officedocument."
+        "spreadsheetml.sheet"
+    ),
+    use_container_width=True
+    )
