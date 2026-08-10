@@ -26,6 +26,45 @@ user = st.session_state["user"]
 
 
 # =========================================================
+# CATEGORY LIST
+# =========================================================
+categories = [
+    "Bakery",
+    "Beating",
+    "Bike",
+    "Bills",
+    "Chiti",
+    "Credit Card",
+    "Entertainment",
+    "Education",
+    "Electricity",
+    "EMI",
+    "Gifts",
+    "Groceries/vegetable's",
+    "Investment",
+    "Medical",
+    "Home",
+    "Hotel/Dhaba",
+    "Insurance",
+    "Internet",
+    "Loan",
+    "Fuel",
+    "Rent",
+    "Recharge",
+    "Saloon",
+    "Shopping",
+    "Subscriptions",
+    "Shop",
+    "Travel",
+    "Transport",
+    "Trip",
+    "Mobile",
+    "Utensils",
+    "Other"
+]
+
+
+# =========================================================
 # TITLE
 # =========================================================
 st.title("💰 Budget")
@@ -54,7 +93,7 @@ else:
 
 
 # =========================================================
-# ADD / UPDATE BUDGET
+# SET BUDGET
 # =========================================================
 st.divider()
 
@@ -63,12 +102,14 @@ st.subheader("➕ Set Category Budget")
 col1, col2 = st.columns(2)
 
 with col1:
-    category = st.text_input(
+
+    category = st.selectbox(
         "Category",
-        placeholder="Food, Travel, Shopping..."
+        categories
     )
 
 with col2:
+
     budget_amount = st.number_input(
         "Monthly Budget",
         min_value=0.0,
@@ -76,58 +117,64 @@ with col2:
     )
 
 
+# =========================================================
+# SAVE BUDGET
+# =========================================================
 if st.button(
     "💾 Save Budget",
     use_container_width=True
 ):
 
-    if not category.strip():
-        st.error("Please enter a category.")
+    if budget_amount <= 0:
 
-    elif budget_amount <= 0:
-        st.error("Budget must be greater than 0.")
+        st.error(
+            "Budget must be greater than 0."
+        )
 
     else:
 
         try:
 
-            # Check whether this category already exists
             existing = (
                 supabase
                 .table("budgets")
                 .select("*")
                 .eq("user_id", user.id)
-                .eq("category", category.strip())
+                .eq("category", category)
                 .eq("month", str(month_start))
                 .execute()
             )
 
             if existing.data:
 
-                # Update existing budget
                 budget_id = existing.data[0]["id"]
 
                 supabase.table("budgets").update({
                     "amount": budget_amount
                 }).eq(
-                    "id", budget_id
+                    "id",
+                    budget_id
                 ).eq(
-                    "user_id", user.id
+                    "user_id",
+                    user.id
                 ).execute()
 
-                st.success("✅ Budget updated!")
+                st.success(
+                    "✅ Budget updated!"
+                )
 
             else:
 
-                # Create new budget
                 supabase.table("budgets").insert({
                     "user_id": user.id,
-                    "category": category.strip(),
+                    "category": category,
                     "amount": budget_amount,
                     "month": str(month_start)
                 }).execute()
 
-                st.success("✅ Budget saved!")
+                st.success(
+                    "✅ Budget saved!"
+                )
 
             st.rerun()
 
@@ -166,7 +213,7 @@ except Exception as e:
 
 
 # =========================================================
-# LOAD EXPENSES FOR SELECTED MONTH
+# LOAD EXPENSES
 # =========================================================
 try:
 
@@ -195,7 +242,7 @@ except Exception as e:
 
 
 # =========================================================
-# NO BUDGETS
+# BUDGET OVERVIEW
 # =========================================================
 if budget_df.empty:
 
@@ -206,9 +253,6 @@ if budget_df.empty:
     st.stop()
 
 
-# =========================================================
-# CALCULATE SPENDING
-# =========================================================
 if not expense_df.empty:
 
     expense_df["amount"] = pd.to_numeric(
@@ -229,12 +273,8 @@ else:
 
 
 # =========================================================
-# BUDGET SUMMARY
+# TOTALS
 # =========================================================
-st.divider()
-
-st.subheader("📊 Budget Overview")
-
 total_budget = 0
 total_spent = 0
 
@@ -253,8 +293,17 @@ for _, row in budget_df.iterrows():
     total_spent += spent
 
 
-total_remaining = total_budget - total_spent
+total_remaining = (
+    total_budget - total_spent
+)
 
+
+# =========================================================
+# SUMMARY
+# =========================================================
+st.divider()
+
+st.subheader("📊 Budget Overview")
 
 c1, c2, c3 = st.columns(3)
 
@@ -285,7 +334,10 @@ st.subheader("📋 Category Budgets")
 for _, row in budget_df.iterrows():
 
     category_name = row["category"]
-    budget = float(row["amount"])
+
+    budget = float(
+        row["amount"]
+    )
 
     spent = float(
         spent_by_category.get(
@@ -294,51 +346,60 @@ for _, row in budget_df.iterrows():
         )
     )
 
-    remaining = budget - spent
+    remaining = (
+        budget - spent
+    )
 
     if budget > 0:
+
         progress = min(
             spent / budget,
             1.0
         )
+
     else:
+
         progress = 0
+
 
     st.markdown(
         f"### {category_name}"
     )
 
-    col1, col2, col3 = st.columns(3)
 
-    col1.metric(
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
         "Budget",
         f"₹{budget:,.2f}"
     )
 
-    col2.metric(
+    c2.metric(
         "Spent",
         f"₹{spent:,.2f}"
     )
 
-    col3.metric(
+    c3.metric(
         "Remaining",
         f"₹{remaining:,.2f}"
     )
 
+
     st.progress(progress)
+
 
     if spent > budget:
 
         st.error(
-            f"🚨 {category_name}: Budget exceeded by "
+            f"🚨 Budget exceeded by "
             f"₹{abs(remaining):,.2f}"
         )
 
     elif spent >= budget * 0.8:
 
         st.warning(
-            f"⚠️ {category_name}: You have used "
-            f"{(spent / budget) * 100:.0f}% of your budget."
+            f"⚠️ {category_name}: "
+            f"{(spent / budget) * 100:.0f}% used"
         )
 
     else:
@@ -347,5 +408,6 @@ for _, row in budget_df.iterrows():
             f"✅ {category_name}: "
             f"{(spent / budget) * 100:.0f}% used"
         )
+
 
     st.divider()
