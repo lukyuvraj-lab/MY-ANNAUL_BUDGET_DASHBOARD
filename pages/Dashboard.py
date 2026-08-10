@@ -20,178 +20,160 @@ if "user" not in st.session_state:
     st.warning("Please log in first.")
     st.stop()
 
-# Initialize local tracking if needed for fallback/manual addition
-if "transactions" not in st.session_state:
-    st.session_state["transactions"] = []
+st.title("💰 MoneyMate Dashboard")
+st.caption("Your clean financial overview")
 
 # -------------------------------------------------
-# SIDEBAR NAVIGATION
+# 1. FETCH & PROCESS DATABASE DATA
 # -------------------------------------------------
-menu = st.sidebar.selectbox(
-    "Menu",
-    ["Dashboard", "Add Income", "Add Expense", "Transactions"]
+response = (
+    supabase
+    .table("transactions")
+    .select("*")
+    .order("date", desc=True)
+    .execute()
 )
+df = pd.DataFrame(response.data)
 
-# ============================================================
-# DASHBOARD
-# ============================================================
-if menu == "Dashboard":
-    st.title("💰 MoneyMate Dashboard")
-    st.caption("Your financial overview")
-
-    # LOAD TRANSACTIONS FROM SUPABASE
-    response = (
-        supabase
-        .table("transactions")
-        .select("*")
-        .order("date", desc=True)
-        .execute()
-    )
-    df = pd.DataFrame(response.data)
-
-    # EMPTY DATA CHECK
-    if df.empty:
-        st.info("No transactions available yet.")
-        st.stop()
-
-    # CALCULATE TOTALS
+# Calculate financial indicators
+if not df.empty:
     income = df.loc[df["type"].str.lower() == "income", "amount"].sum()
     expense = df.loc[df["type"].str.lower() == "expense", "amount"].sum()
-    balance = income - expense
-    savings = (balance / income) * 100 if income > 0 else 0
+else:
+    income, expense = 0.0, 0.0
 
-    # KPI CARDS
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("💰 Total Income", f"₹{income:,.2f}")
-    c2.metric("💸 Total Expense", f"₹{expense:,.2f}")
-    c3.metric("🏦 Balance", f"₹{balance:,.2f}")
-    c4.metric("📊 Savings %", f"{savings:.1f}%")
+balance = income - expense
+savings_pct = (balance / income) * 100 if income > 0 else 0.0
 
-    st.divider()
+# -------------------------------------------------
+# 2. CORE PERFORMANCE METRICS (KPIs)
+# -------------------------------------------------
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("💰 Total Income", f"₹{income:,.2f}")
+c2.metric("💸 Total Expense", f"₹{expense:,.2f}")
+c3.metric("🏦 Net Balance", f"₹{balance:,.2f}")
+c4.metric("📊 Savings Rate", f"{savings_pct:.1f}%")
 
-    # EXPENSE BY CATEGORY
-    st.subheader("🥧 Expense by Category")
+st.divider()
+
+# -------------------------------------------------
+# 3. EXPENSE BREAKDOWN BY CATEGORY
+# -------------------------------------------------
+st.subheader("🥧 Expense Breakdown by Category")
+
+if not df.empty and not df[df["type"].str.lower() == "expense"].empty:
     expense_df = df[df["type"].str.lower() == "expense"].copy()
+    
+    category_expense = (
+        expense_df
+        .groupby("category", as_index=False)["amount"]
+        .sum()
+        .sort_values("amount", ascending=False)
+    )
 
-    if expense_df.empty:
-        st.info("No expense transactions yet.")
-    else:
-        category_expense = (
-            expense_df
-            .groupby("category", as_index=False)["amount"]
-            .sum()
-            .sort_values("amount", ascending=False)
+    chart_col, table_col = st.columns([3, 2])
+    
+    with chart_col:
+        fig = px.pie(
+            category_expense, 
+            names="category", 
+            values="amount", 
+            hole=0.4,
+            color_discrete_sequence=px.colors.sequential.RdBu
         )
+        fig.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=300)
+        st.plotly_chart(fig, use_container_width=True)
 
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            fig = px.pie(category_expense, names="category", values="amount", hole=0.4)
-            fig.update_layout(margin=dict(t=20, b=20, l=20, r=20))
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-            st.dataframe(category_expense, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-    # RECENT TRANSACTIONS
-    st.subheader("📋 Recent Transactions")
-    display_columns = ["date", "type", "category", "account", "amount", "note"]
-    available_columns = [col for col in display_columns if col in df.columns]
-    recent_df = df.head(10)[available_columns].copy()
-
-    st.dataframe(recent_df, use_container_width=True, hide_index=True)
-
-# ============================================================
-# ADD INCOME
-# ============================================================
-elif menu == "Add Income":
-    st.title("💵 Add Income")
-
-    with st.form("income_form"):
-        amount = st.number_input("Amount (₹)", min_value=0.0, step=100.0)
-        category = st.selectbox(
-            "Category",
-            ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"]
-        )
-        description = st.text_input("Description")
-        date = st.date_input("Date")
-        submit = st.form_submit_button("➕ Add Income")
-
-        if submit:
-            if amount <= 0:
-                st.error("Enter a valid amount.")
-            else:
-                st.session_state["transactions"].append({
-                    "Date": str(date),
-                    "Type": "Income",
-                    "Category": category,
-                    "Description": description,
-                    "Amount": float(amount)
-                })
-                st.success("Income added successfully! ✅")
-                st.rerun()
-
-# ============================================================
-# ADD EXPENSE
-# ============================================================
-elif menu == "Add Expense":
-    st.title("💸 Add Expense")
-
-    with st.form("expense_form"):
-        amount = st.number_input("Amount (₹)", min_value=0.0, step=100.0)
-        category = st.selectbox(
-            "Category",
-            [
-                "Food", "Travel", "Shopping", "Bills", "Education", "Entertainment",
-                "Medical", "Rent", "Groceries", "Fuel", "Electricity", "Mobile Recharge",
-                "Internet", "Subscriptions", "Clothing", "Household", "Insurance",
-                "Personal Care", "Gifts", "EMI / Loan", "Other"
-            ]
-        )
-        description = st.text_input("Description")
-        date = st.date_input("Date")
-        submit = st.form_submit_button("➖ Add Expense")
-
-        if submit:
-            if amount <= 0:
-                st.error("Enter a valid amount.")
-            else:
-                st.session_state["transactions"].append({
-                    "Date": str(date),
-                    "Type": "Expense",
-                    "Category": category,
-                    "Description": description,
-                    "Amount": float(amount)
-                })
-                st.success("Expense added successfully! ✅")
-                st.rerun()
-
-# ============================================================
-# TRANSACTIONS
-# ============================================================
-elif menu == "Transactions":
-    st.title("📋 Manual Transactions")
-
-    if st.session_state["transactions"]:
+    with table_col:
         st.dataframe(
-            st.session_state["transactions"][::-1],
-            use_container_width=True,
+            category_expense.rename(columns={"category": "Category", "amount": "Total Amount (₹)"}),
+            use_container_width=True, 
             hide_index=True
         )
-        st.markdown("---")
-        if st.button("🗑️ Clear All Transactions"):
-            st.session_state["transactions"] = []
-            st.success("Transactions cleared.")
-            st.rerun()
-    else:
-        st.info("No manual transactions available.")
+else:
+    st.info("No expense data recorded yet to generate breakdown analytics.")
+
+st.divider()
+
+# -------------------------------------------------
+# 4. ACTION CENTER: ADD TRANSACTIONS DIRECTLY TO SUPABASE
+# -------------------------------------------------
+st.subheader("⚡ Quick Actions")
+action_tab1, action_tab2 = st.tabs(["💵 Record New Income", "💸 Record New Expense"])
+
+# Record Income Tab
+with action_tab1:
+    with st.form("inc_form", clear_on_submit=True):
+        inc_cols = st.columns(4)
+        inc_amt = inc_cols[0].number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
+        inc_cat = inc_cols[1].selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
+        inc_note = inc_cols[2].text_input("Note / Description", key="inc_n")
+        inc_date = inc_cols[3].date_input("Date", key="inc_d")
+        
+        if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
+            if inc_amt <= 0:
+                st.error("Please log an amount greater than ₹0.")
+            else:
+                supabase.table("transactions").insert({
+                    "date": str(inc_date),
+                    "type": "Income",
+                    "category": inc_cat,
+                    "amount": float(inc_amt),
+                    "note": inc_note
+                }).execute()
+                st.success("Income synced to Supabase successfully! 🎉")
+                st.rerun()
+
+# Record Expense Tab
+with action_tab2:
+    with st.form("exp_form", clear_on_submit=True):
+        exp_cols = st.columns(4)
+        exp_amt = exp_cols[0].number_input("Amount (₹)", min_value=0.0, step=100.0, key="exp_a")
+        exp_cat = exp_cols[1].selectbox("Category", [
+            "Food", "Travel", "Shopping", "Bills", "Education", "Entertainment",
+            "Medical", "Rent", "Groceries", "Fuel", "Electricity", "Mobile Recharge",
+            "Internet", "Subscriptions", "Clothing", "Household", "Insurance", "Other"
+        ], key="exp_c")
+        exp_note = exp_cols[2].text_input("Note / Description", key="exp_n")
+        exp_date = exp_cols[3].date_input("Date", key="exp_d")
+        
+        if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
+            if exp_amt <= 0:
+                st.error("Please log an amount greater than ₹0.")
+            else:
+                supabase.table("transactions").insert({
+                    "date": str(exp_date),
+                    "type": "Expense",
+                    "category": exp_cat,
+                    "amount": float(exp_amt),
+                    "note": exp_note
+                }).execute()
+                st.success("Expense synced to Supabase successfully! 🛡️")
+                st.rerun()
+
+st.divider()
+
+# -------------------------------------------------
+# 5. ALL LIVE TRANSACTIONS HISTORY
+# -------------------------------------------------
+st.subheader("📋 Ledger History")
+
+if not df.empty:
+    display_columns = ["date", "type", "category", "amount", "note"]
+    clean_history = df[display_columns].copy()
+    
+    st.dataframe(
+        clean_history.rename(columns=str.title), 
+        use_container_width=True, 
+        hide_index=True
+    )
+else:
+    st.info("No historical entries located inside your database ledger.")
 
 # -------------------------------------------------
 # FOOTER
 # -------------------------------------------------
-st.markdown("---")
 st.caption(
-    f"MoneyMate Dashboard • "
+    f"MoneyMate Dashboard • Live Connection Verified • "
     f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
 )
