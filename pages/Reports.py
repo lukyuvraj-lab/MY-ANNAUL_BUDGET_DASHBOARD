@@ -13,16 +13,12 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Yearly Reports")
-st.caption("Income, Expense & Year Summary")
+st.title("📊 MoneyMate - Yearly Report")
 
-# ------------------------------------------------------------
-# Get transaction data
-# ------------------------------------------------------------
 
-# IMPORTANT:
-# Replace this section with your existing Supabase transaction
-# loading code if you already have it in your project.
+# ============================================================
+# LOAD TRANSACTIONS
+# ============================================================
 
 try:
     from utils.supabase_client import supabase
@@ -49,72 +45,28 @@ if not data:
 df = pd.DataFrame(data)
 
 
-# ------------------------------------------------------------
-# Prepare columns
-# ------------------------------------------------------------
-
-df["date"] = pd.to_datetime(df["date"], errors="coerce")
-df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
-
-df = df.dropna(subset=["date"])
-
 # ============================================================
-# 📊 YEARLY KPI SUMMARY
+# PREPARE DATA
 # ============================================================
 
-total_income = year_df.loc[
-    year_df["type"].astype(str).str.lower() == "income",
-    "amount"
-].sum()
+df["date"] = pd.to_datetime(
+    df["date"],
+    errors="coerce"
+)
 
-total_expense = year_df.loc[
-    year_df["type"].astype(str).str.lower() == "expense",
-    "amount"
-].sum()
+df["amount"] = pd.to_numeric(
+    df["amount"],
+    errors="coerce"
+).fillna(0)
 
-total_savings = total_income - total_expense
+df = df.dropna(
+    subset=["date"]
+)
 
-if total_income > 0:
-    total_spend_percent = (total_expense / total_income) * 100
-else:
-    total_spend_percent = 0
-
-year_df = df[df["date"].dt.year == selected_year].copy()
 
 # ============================================================
-# KPI CARDS
+# YEAR SELECTOR
 # ============================================================
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        "💰 Total Income",
-        f"₹{total_income:,.2f}"
-    )
-
-with col2:
-    st.metric(
-        "💸 Total Expense",
-        f"₹{total_expense:,.2f}"
-    )
-
-with col3:
-    st.metric(
-        "🏦 Total Savings",
-        f"₹{total_savings:,.2f}"
-    )
-
-with col4:
-    st.metric(
-        "📊 Total Spend %",
-        f"{total_spend_percent:.2f}%"
-    )
-
-
-# ------------------------------------------------------------
-# Year selector
-# ------------------------------------------------------------
 
 available_years = sorted(
     df["date"].dt.year.unique(),
@@ -126,39 +78,136 @@ selected_year = st.selectbox(
     available_years
 )
 
-year_df = df[df["date"].dt.year == selected_year].copy()
+year_df = df[
+    df["date"].dt.year == selected_year
+].copy()
+
 
 if year_df.empty:
-    st.warning("No transactions found for the selected year.")
+    st.warning(
+        "No transactions found for the selected year."
+    )
     st.stop()
 
 
-# ------------------------------------------------------------
-# Month names
-# ------------------------------------------------------------
+# ============================================================
+# MONTHS
+# ============================================================
 
 months = [
-    "Jan", "Feb", "Mar", "Apr",
-    "May", "Jun", "Jul", "Aug",
-    "Sep", "Oct", "Nov", "Dec"
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
 ]
 
-month_numbers = {
-    "Jan": 1,
-    "Feb": 2,
-    "Mar": 3,
-    "Apr": 4,
-    "May": 5,
-    "Jun": 6,
-    "Jul": 7,
-    "Aug": 8,
-    "Sep": 9,
-    "Oct": 10,
-    "Nov": 11,
-    "Dec": 12
-}
+year_df["Month"] = (
+    year_df["date"].dt.month
+)
 
-year_df["Month"] = year_df["date"].dt.month
+
+# ============================================================
+# 📊 YEARLY KPI SUMMARY
+# ============================================================
+
+income_mask = (
+    year_df["type"]
+    .astype(str)
+    .str.lower()
+    == "income"
+)
+
+expense_mask = (
+    year_df["type"]
+    .astype(str)
+    .str.lower()
+    == "expense"
+)
+
+
+total_income = year_df.loc[
+    income_mask,
+    "amount"
+].sum()
+
+
+total_expense = year_df.loc[
+    expense_mask,
+    "amount"
+].sum()
+
+
+total_savings = (
+    total_income -
+    total_expense
+)
+
+
+if total_income > 0:
+
+    total_spend_percent = (
+        total_expense /
+        total_income
+    ) * 100
+
+else:
+
+    total_spend_percent = 0
+
+
+# ============================================================
+# 💰 YEARLY SUMMARY CARDS
+# ============================================================
+
+st.subheader(
+    f"📅 {selected_year} Overview"
+)
+
+
+col1, col2, col3, col4 = st.columns(4)
+
+
+with col1:
+
+    st.metric(
+        label="💰 Total Income",
+        value=f"₹{total_income:,.2f}"
+    )
+
+
+with col2:
+
+    st.metric(
+        label="💸 Total Expense",
+        value=f"₹{total_expense:,.2f}"
+    )
+
+
+with col3:
+
+    st.metric(
+        label="🏦 Total Savings",
+        value=f"₹{total_savings:,.2f}"
+    )
+
+
+with col4:
+
+    st.metric(
+        label="📊 Total Spend %",
+        value=f"{total_spend_percent:.2f}%"
+    )
+
+
+st.divider()
 
 
 # ============================================================
@@ -167,14 +216,20 @@ year_df["Month"] = year_df["date"].dt.month
 
 st.subheader("💰 Income")
 
+
 income_df = year_df[
-    year_df["type"].astype(str).str.lower() == "income"
+    income_mask
 ].copy()
+
 
 if income_df.empty:
 
     income_table = pd.DataFrame(
-        columns=["Category"] + months + ["Total"]
+        columns=[
+            "Category"
+        ] + months + [
+            "Total"
+        ]
     )
 
 else:
@@ -188,7 +243,7 @@ else:
         fill_value=0
     )
 
-    # Make sure all 12 months exist
+    # Ensure all 12 months exist
     income_table = income_table.reindex(
         columns=range(1, 13),
         fill_value=0
@@ -196,14 +251,24 @@ else:
 
     income_table.columns = months
 
-    income_table["Total"] = income_table.sum(axis=1)
+    # Category total
+    income_table["Total"] = (
+        income_table.sum(axis=1)
+    )
 
-    income_table.loc["Total Income"] = income_table.sum(axis=0)
+    # Total Income row
+    income_table.loc[
+        "Total Income"
+    ] = income_table.sum(axis=0)
 
-    income_table = income_table.reset_index()
-
-    income_table = income_table.rename(
-        columns={"category": "Category"}
+    income_table = (
+        income_table
+        .reset_index()
+        .rename(
+            columns={
+                "category": "Category"
+            }
+        )
     )
 
 
@@ -220,14 +285,20 @@ st.dataframe(
 
 st.subheader("💸 Expense")
 
+
 expense_df = year_df[
-    year_df["type"].astype(str).str.lower() == "expense"
+    expense_mask
 ].copy()
+
 
 if expense_df.empty:
 
     expense_table = pd.DataFrame(
-        columns=["Category"] + months + ["Total"]
+        columns=[
+            "Category"
+        ] + months + [
+            "Total"
+        ]
     )
 
 else:
@@ -241,7 +312,7 @@ else:
         fill_value=0
     )
 
-    # Make sure all 12 months exist
+    # Ensure all 12 months exist
     expense_table = expense_table.reindex(
         columns=range(1, 13),
         fill_value=0
@@ -249,14 +320,24 @@ else:
 
     expense_table.columns = months
 
-    expense_table["Total"] = expense_table.sum(axis=1)
+    # Category total
+    expense_table["Total"] = (
+        expense_table.sum(axis=1)
+    )
 
-    expense_table.loc["Total Expense"] = expense_table.sum(axis=0)
+    # Total Expense row
+    expense_table.loc[
+        "Total Expense"
+    ] = expense_table.sum(axis=0)
 
-    expense_table = expense_table.reset_index()
-
-    expense_table = expense_table.rename(
-        columns={"category": "Category"}
+    expense_table = (
+        expense_table
+        .reset_index()
+        .rename(
+            columns={
+                "category": "Category"
+            }
+        )
     )
 
 
@@ -273,46 +354,88 @@ st.dataframe(
 
 st.subheader("🏦 Year Summary")
 
+
 monthly_income = (
-    income_df.groupby("Month")["amount"].sum()
+    income_df
+    .groupby("Month")["amount"]
+    .sum()
     if not income_df.empty
     else pd.Series(dtype=float)
 )
 
+
 monthly_expense = (
-    expense_df.groupby("Month")["amount"].sum()
+    expense_df
+    .groupby("Month")["amount"]
+    .sum()
     if not expense_df.empty
     else pd.Series(dtype=float)
 )
 
+
 summary = pd.DataFrame(
-    index=["Income", "Expense", "Balance"],
+    index=[
+        "Income",
+        "Expense",
+        "Balance"
+    ],
     columns=months,
     dtype=float
 )
 
-for month in range(1, 13):
 
-    month_name = months[month - 1]
+for month_number in range(1, 13):
 
-    income_value = monthly_income.get(month, 0)
-    expense_value = monthly_expense.get(month, 0)
+    month_name = months[
+        month_number - 1
+    ]
 
-    summary.loc["Income", month_name] = income_value
-    summary.loc["Expense", month_name] = expense_value
-    summary.loc["Balance", month_name] = (
-        income_value - expense_value
+    income_value = monthly_income.get(
+        month_number,
+        0
+    )
+
+    expense_value = monthly_expense.get(
+        month_number,
+        0
+    )
+
+    summary.loc[
+        "Income",
+        month_name
+    ] = income_value
+
+    summary.loc[
+        "Expense",
+        month_name
+    ] = expense_value
+
+    summary.loc[
+        "Balance",
+        month_name
+    ] = (
+        income_value -
+        expense_value
     )
 
 
-# Year Total column
-summary["Year Total"] = summary.sum(axis=1)
+# Year Total
+summary["Year Total"] = (
+    summary.sum(axis=1)
+)
 
-summary = summary.reset_index()
-summary = summary.rename(columns={"index": "Type"})
+
+summary = (
+    summary
+    .reset_index()
+    .rename(
+        columns={
+            "index": "Type"
+        }
+    )
+)
 
 
-# Display
 st.dataframe(
     summary,
     use_container_width=True,
@@ -332,8 +455,14 @@ st.subheader("📊 Charts")
 # ------------------------------------------------------------
 
 chart_data = summary[
-    summary["Type"].isin(["Income", "Expense"])
+    summary["Type"].isin(
+        [
+            "Income",
+            "Expense"
+        ]
+    )
 ].copy()
+
 
 chart_data = chart_data.melt(
     id_vars="Type",
@@ -342,14 +471,19 @@ chart_data = chart_data.melt(
     value_name="Amount"
 )
 
+
 fig_income_expense = px.bar(
     chart_data,
     x="Month",
     y="Amount",
     color="Type",
     barmode="group",
-    title=f"Monthly Income vs Expense - {selected_year}"
+    title=(
+        f"Monthly Income vs Expense - "
+        f"{selected_year}"
+    )
 )
+
 
 st.plotly_chart(
     fig_income_expense,
@@ -368,14 +502,20 @@ if not expense_df.empty:
         .groupby("category")["amount"]
         .sum()
         .reset_index()
-        .sort_values("amount", ascending=False)
+        .sort_values(
+            "amount",
+            ascending=False
+        )
     )
 
     fig_category = px.pie(
         category_expense,
         names="category",
         values="amount",
-        title=f"Expense by Category - {selected_year}"
+        title=(
+            f"Expense by Category - "
+            f"{selected_year}"
+        )
     )
 
     st.plotly_chart(
@@ -384,7 +524,11 @@ if not expense_df.empty:
     )
 
 else:
-    st.info("No expense data available for this year.")
+
+    st.info(
+        "No expense data available "
+        "for this year."
+    )
 
 
 # ============================================================
@@ -403,21 +547,30 @@ def create_excel():
         engine="openpyxl"
     ) as writer:
 
-        # Income sheet
+        # ----------------------------------------
+        # Income
+        # ----------------------------------------
+
         income_table.to_excel(
             writer,
             sheet_name="Income",
             index=False
         )
 
-        # Expense sheet
+        # ----------------------------------------
+        # Expense
+        # ----------------------------------------
+
         expense_table.to_excel(
             writer,
             sheet_name="Expense",
             index=False
         )
 
-        # Summary sheet
+        # ----------------------------------------
+        # Year Summary
+        # ----------------------------------------
+
         summary.to_excel(
             writer,
             sheet_name="Year Summary",
@@ -435,9 +588,12 @@ excel_file = create_excel()
 st.download_button(
     label="📥 Download Yearly Report Excel",
     data=excel_file,
-    file_name=f"MoneyMate_Yearly_Report_{selected_year}.xlsx",
+    file_name=(
+        f"MoneyMate_Yearly_Report_"
+        f"{selected_year}.xlsx"
+    ),
     mime=(
         "application/vnd.openxmlformats-officedocument."
         "spreadsheetml.sheet"
     )
-    )
+)
