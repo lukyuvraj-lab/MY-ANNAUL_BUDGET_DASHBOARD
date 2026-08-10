@@ -4,6 +4,19 @@ from datetime import date
 
 from utils.supabase_client import supabase
 
+# =========================================================
+# RESTORE SUPABASE LOGIN SESSION
+# =========================================================
+if (
+    "access_token" in st.session_state
+    and "refresh_token" in st.session_state
+):
+
+    supabase.auth.set_session(
+        st.session_state["access_token"],
+        st.session_state["refresh_token"]
+    )
+
 
 # =========================================================
 # PAGE CONFIG
