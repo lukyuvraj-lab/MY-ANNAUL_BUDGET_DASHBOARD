@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
-from pathlib import Path
 from io import BytesIO
-from copy import copy
-
-from openpyxl import load_workbook
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.chart import BarChart, Reference
+from openpyxl.utils import get_column_letter
 
 
 # ============================================================
@@ -118,7 +117,7 @@ df = pd.DataFrame(data)
 
 
 # ============================================================
-# PREPARE DATA
+# CHECK REQUIRED COLUMNS
 # ============================================================
 
 required_columns = [
@@ -129,17 +128,22 @@ required_columns = [
 ]
 
 missing_columns = [
-    col for col in required_columns
-    if col not in df.columns
+    column
+    for column in required_columns
+    if column not in df.columns
 ]
 
 if missing_columns:
     st.error(
-        "Missing columns in transactions table: "
+        "Missing columns: "
         + ", ".join(missing_columns)
     )
     st.stop()
 
+
+# ============================================================
+# CLEAN DATA
+# ============================================================
 
 df["date"] = pd.to_datetime(
     df["date"],
@@ -161,7 +165,7 @@ df["type"] = (
 
 df["category"] = (
     df["category"]
-    .fillna("Other Expense")
+    .fillna("")
     .astype(str)
     .str.strip()
 )
@@ -195,10 +199,9 @@ year_df = df[
     df["date"].dt.year == selected_year
 ].copy()
 
-
 if year_df.empty:
     st.warning(
-        "No transactions found for the selected year."
+        "No transactions found for this year."
     )
     st.stop()
 
@@ -217,18 +220,25 @@ expense_df = year_df[
 
 
 total_income = income_df["amount"].sum()
-total_expense = expense_df["amount"].sum()
-total_balance = total_income - total_expense
 
-spend_percent = (
-    (total_expense / total_income) * 100
-    if total_income > 0
-    else 0
+total_expense = expense_df["amount"].sum()
+
+total_balance = (
+    total_income -
+    total_expense
 )
+
+if total_income > 0:
+    spend_percent = (
+        total_expense /
+        total_income
+    ) * 100
+else:
+    spend_percent = 0
 
 
 # ============================================================
-# STREAMLIT KPI
+# KPI DISPLAY
 # ============================================================
 
 st.subheader(
@@ -266,26 +276,22 @@ st.divider()
 
 
 # ============================================================
-# BUILD REPORT TABLES
-# USE EXACT CATEGORY LIST
+# BUILD CATEGORY TABLE
 # ============================================================
 
-def build_category_table(source_df, categories):
-    """
-    Creates a table using the exact category order from
-    Transactions.py.
+def build_category_table(
+    source_df,
+    categories
+):
 
-    Categories with no transactions remain in the report
-    with zero values.
-    """
-
-    result = pd.DataFrame(
+    table = pd.DataFrame(
         0.0,
         index=categories,
         columns=months
     )
 
     if not source_df.empty:
+
         grouped = (
             source_df
             .groupby(
@@ -295,8 +301,11 @@ def build_category_table(source_df, categories):
         )
 
         for category in categories:
-            if category not in grouped.index.get_level_values(
-                "category"
+
+            if category not in (
+                grouped
+                .index
+                .get_level_values("category")
             ):
                 continue
 
@@ -304,23 +313,28 @@ def build_category_table(source_df, categories):
 
                 try:
                     value = grouped.loc[
-                        (category, month_number)
+                        (
+                            category,
+                            month_number
+                        )
                     ]
                 except KeyError:
                     value = 0
 
-                result.loc[
+                table.loc[
                     category,
-                    months[month_number - 1]
+                    months[
+                        month_number - 1
+                    ]
                 ] = float(value)
 
-    result.index.name = "Item"
+    table.index.name = "Category"
 
-    result["Total"] = result.sum(axis=1)
+    table["Total"] = (
+        table.sum(axis=1)
+    )
 
-    result = result.reset_index()
-
-    return result
+    return table.reset_index()
 
 
 income_table = build_category_table(
@@ -335,7 +349,7 @@ expense_table = build_category_table(
 
 
 # ============================================================
-# STREAMLIT TABLES
+# SHOW INCOME
 # ============================================================
 
 st.subheader("💰 Income")
@@ -346,7 +360,12 @@ st.dataframe(
     hide_index=True
 )
 
-st.subheader("💸 Expenses")
+
+# ============================================================
+# SHOW EXPENSE
+# ============================================================
+
+st.subheader("💸 Expense")
 
 st.dataframe(
     expense_table,
@@ -360,8 +379,11 @@ st.dataframe(
 # ============================================================
 
 monthly_income = []
+
 monthly_expense = []
+
 monthly_balance = []
+
 
 for month_number in range(1, 13):
 
@@ -385,7 +407,8 @@ for month_number in range(1, 13):
 
     monthly_balance.append(
         float(
-            income_value - expense_value
+            income_value -
+            expense_value
         )
     )
 
@@ -398,6 +421,7 @@ summary = pd.DataFrame({
     ]
 })
 
+
 for i, month in enumerate(months):
 
     summary[month] = [
@@ -406,12 +430,17 @@ for i, month in enumerate(months):
         monthly_balance[i]
     ]
 
+
 summary["Year Total"] = [
     total_income,
     total_expense,
     total_balance
 ]
 
+
+# ============================================================
+# YEAR SUMMARY
+# ============================================================
 
 st.subheader("🏦 Year Summary")
 
@@ -423,570 +452,660 @@ st.dataframe(
 
 
 # ============================================================
-# TEMPLATE LOCATION
+# CHART
 # ============================================================
 
-BASE_DIR = Path(
-    __file__
-).resolve().parent
-
-TEMPLATE_NAME = (
-    "MoneyMate_Annual_Budget_Template.xlsx"
+st.subheader(
+    "📊 Monthly Income vs Expense"
 )
 
-TEMPLATE_PATH = (
-    BASE_DIR /
-    TEMPLATE_NAME
+chart_df = pd.DataFrame({
+    "Month": months,
+    "Income": monthly_income,
+    "Expense": monthly_expense
+})
+
+st.bar_chart(
+    chart_df.set_index("Month"),
+    use_container_width=True
 )
 
 
 # ============================================================
-# FIND TEMPLATE
-# ============================================================
-
-template_path = None
-
-possible_paths = [
-    BASE_DIR / TEMPLATE_NAME,
-    Path.cwd() / TEMPLATE_NAME,
-    Path("/mount/src/value-pending") / TEMPLATE_NAME,
-]
-
-for path in possible_paths:
-    if path.exists() and path.is_file():
-        template_path = path
-        break
-
-
-# ============================================================
-# TEMPLATE STATUS
-# ============================================================
-
-with st.expander(
-    "🔧 Excel Template Status"
-):
-
-    st.write(
-        "report.py folder:",
-        str(BASE_DIR)
-    )
-
-    st.write(
-        "Template expected:",
-        str(BASE_DIR / TEMPLATE_NAME)
-    )
-
-    if template_path:
-        st.success(
-            f"Template found: {template_path}"
-        )
-    else:
-        st.error(
-            "Template not found."
-        )
-
-
-# ============================================================
-# HELPER
-# ============================================================
-
-def find_text_cell(ws, text):
-    text = str(text).strip().lower()
-
-    for row in ws.iter_rows():
-        for cell in row:
-
-            if cell.value is None:
-                continue
-
-            value = str(
-                cell.value
-            ).strip().lower()
-
-            if value == text:
-                return cell
-
-    return None
-
-
-def find_month_header_row(ws):
-    for row in ws.iter_rows():
-
-        values = {
-            str(cell.value).strip()
-            for cell in row
-            if cell.value is not None
-        }
-
-        count = sum(
-            month in values
-            for month in months
-        )
-
-        if count >= 8:
-            return row[0].row
-
-    return None
-
-
-def find_month_columns(ws, header_row):
-    month_columns = {}
-
-    if header_row is None:
-        return month_columns
-
-    for cell in ws[header_row]:
-
-        if cell.value is None:
-            continue
-
-        value = str(
-            cell.value
-        ).strip()
-
-        if value in months:
-            month_columns[
-                value
-            ] = cell.column
-
-    return month_columns
-
-
-def copy_row_style(ws, source_row, target_row):
-    for col in range(
-        1,
-        ws.max_column + 1
-    ):
-        source = ws.cell(
-            source_row,
-            col
-        )
-        target = ws.cell(
-            target_row,
-            col
-        )
-
-        if source.has_style:
-            target._style = copy(
-                source._style
-            )
-
-        if source.number_format:
-            target.number_format = (
-                source.number_format
-            )
-
-        if source.alignment:
-            target.alignment = copy(
-                source.alignment
-            )
-
-        if source.font:
-            target.font = copy(
-                source.font
-            )
-
-        if source.fill:
-            target.fill = copy(
-                source.fill
-            )
-
-        if source.border:
-            target.border = copy(
-                source.border
-            )
-
-
-# ============================================================
-# CREATE EXCEL REPORT
+# CREATE EXCEL
+# NO TEMPLATE REQUIRED
+# ONE SHEET ONLY
 # ============================================================
 
 def create_excel_report():
 
-    if template_path is None:
-        raise FileNotFoundError(
-            "MoneyMate_Annual_Budget_Template.xlsx "
-            "was not found.\n\n"
-            f"Expected location:\n{BASE_DIR / TEMPLATE_NAME}\n\n"
-            "Upload the template to the same GitHub folder "
-            "as report.py."
-        )
+    wb = Workbook()
+
+    ws = wb.active
+
+    ws.title = "Yearly Report"
 
 
-    # --------------------------------------------------------
-    # LOAD TEMPLATE
-    # --------------------------------------------------------
+    # ========================================================
+    # COLORS
+    # ========================================================
 
-    wb = load_workbook(
-        filename=str(template_path)
+    title_fill = PatternFill(
+        "solid",
+        fgColor="1F4E78"
+    )
+
+    header_fill = PatternFill(
+        "solid",
+        fgColor="5B9BD5"
+    )
+
+    section_fill = PatternFill(
+        "solid",
+        fgColor="D9EAF7"
+    )
+
+    total_fill = PatternFill(
+        "solid",
+        fgColor="E2F0D9"
     )
 
 
-    # --------------------------------------------------------
-    # USE FIRST SHEET ONLY
-    # --------------------------------------------------------
+    # ========================================================
+    # FONTS
+    # ========================================================
 
-    ws = wb.worksheets[0]
-
-    ws.title = "Budget by month"
-
-
-    # --------------------------------------------------------
-    # NO FREEZE PANES
-    # --------------------------------------------------------
-
-    ws.freeze_panes = None
-
-
-    # --------------------------------------------------------
-    # REMOVE ALL OTHER SHEETS
-    # --------------------------------------------------------
-
-    for sheet in wb.worksheets[1:]:
-        wb.remove(sheet)
-
-
-    # --------------------------------------------------------
-    # FIND TEMPLATE SECTIONS
-    # --------------------------------------------------------
-
-    income_cell = find_text_cell(
-        ws,
-        "Income"
+    title_font = Font(
+        name="Calibri",
+        size=16,
+        bold=True,
+        color="FFFFFF"
     )
 
-    expense_cell = find_text_cell(
-        ws,
-        "Expenses"
+    section_font = Font(
+        name="Calibri",
+        size=13,
+        bold=True
     )
 
-    if expense_cell is None:
-        expense_cell = find_text_cell(
-            ws,
-            "Expense"
-        )
-
-    header_row = find_month_header_row(
-        ws
+    header_font = Font(
+        name="Calibri",
+        size=11,
+        bold=True,
+        color="FFFFFF"
     )
 
-    month_columns = find_month_columns(
-        ws,
-        header_row
+    normal_font = Font(
+        name="Calibri",
+        size=11
+    )
+
+    bold_font = Font(
+        name="Calibri",
+        size=11,
+        bold=True
     )
 
 
-    # --------------------------------------------------------
-    # FALLBACK MONTH COLUMNS
-    # --------------------------------------------------------
+    # ========================================================
+    # BORDER
+    # ========================================================
 
-    if len(month_columns) < 12:
+    thin_side = Side(
+        style="thin",
+        color="B7B7B7"
+    )
 
-        header_row = (
-            header_row
-            if header_row is not None
-            else 13
+    border = Border(
+        left=thin_side,
+        right=thin_side,
+        top=thin_side,
+        bottom=thin_side
+    )
+
+
+    # ========================================================
+    # TITLE
+    # ========================================================
+
+    ws.merge_cells(
+        start_row=1,
+        start_column=1,
+        end_row=1,
+        end_column=14
+    )
+
+    title_cell = ws.cell(
+        1,
+        1
+    )
+
+    title_cell.value = (
+        f"MoneyMate - Annual Report "
+        f"{selected_year}"
+    )
+
+    title_cell.fill = title_fill
+
+    title_cell.font = title_font
+
+    title_cell.alignment = Alignment(
+        horizontal="center",
+        vertical="center"
+    )
+
+    ws.row_dimensions[1].height = 30
+
+
+    # ========================================================
+    # KPI
+    # ========================================================
+
+    kpis = [
+        (
+            "Total Income",
+            total_income
+        ),
+        (
+            "Total Expense",
+            total_expense
+        ),
+        (
+            "Balance",
+            total_balance
+        ),
+        (
+            "Spend %",
+            spend_percent
         )
-
-        month_columns = {
-            month: index
-            for index, month in enumerate(
-                months,
-                start=2
-            )
-        }
+    ]
 
 
-    # --------------------------------------------------------
-    # ITEM COLUMN
-    # --------------------------------------------------------
-
-    item_column = 1
-
-
-    # --------------------------------------------------------
-    # FIND DATA START
-    # --------------------------------------------------------
-
-    if income_cell:
-        income_start_row = (
-            income_cell.row + 2
-        )
-    else:
-        income_start_row = (
-            header_row + 1
-        )
-
-
-    if expense_cell:
-        expense_start_row = (
-            expense_cell.row + 2
-        )
-    else:
-        expense_start_row = (
-            income_start_row +
-            len(income_categories) +
-            5
-        )
-
-
-    # --------------------------------------------------------
-    # WRITE CATEGORY TABLE
-    # --------------------------------------------------------
-
-    def write_table(
-        table,
-        categories,
-        start_row
+    for col, (label, value) in enumerate(
+        kpis,
+        start=1
     ):
 
-        # Template's category rows are used first.
-        # Extra rows copy the style from the last
-        # available row.
+        label_cell = ws.cell(
+            3,
+            col
+        )
 
-        current_row = start_row
+        label_cell.value = label
 
-        for category_index, category in enumerate(
-            categories
-        ):
+        label_cell.fill = section_fill
 
-            if current_row > ws.max_row:
+        label_cell.font = bold_font
 
-                copy_row_style(
-                    ws,
-                    current_row - 1,
-                    current_row
-                )
+        label_cell.border = border
 
-            ws.cell(
-                current_row,
-                item_column
-            ).value = category
+        label_cell.alignment = Alignment(
+            horizontal="center"
+        )
 
-            row_data = table[
-                table["Item"] == category
-            ]
 
-            if row_data.empty:
-                row_data = None
-            else:
-                row_data = row_data.iloc[0]
+        value_cell = ws.cell(
+            4,
+            col
+        )
 
-            for month in months:
+        value_cell.value = value
 
-                col = month_columns[
-                    month
-                ]
+        value_cell.font = bold_font
 
-                value = (
-                    0
-                    if row_data is None
-                    else float(
-                        row_data[month]
-                    )
-                )
+        value_cell.border = border
 
-                ws.cell(
-                    current_row,
-                    col
-                ).value = value
+        value_cell.alignment = Alignment(
+            horizontal="center"
+        )
 
-            current_row += 1
+        if label == "Spend %":
 
-        # Total row
-
-        total_row = current_row
-
-        ws.cell(
-            total_row,
-            item_column
-        ).value = "Total"
-
-        for month in months:
-
-            col = month_columns[
-                month
-            ]
-
-            ws.cell(
-                total_row,
-                col
-            ).value = sum(
-                float(
-                    table.loc[
-                        table["Item"] == category,
-                        month
-                    ].iloc[0]
-                )
-                if not table.loc[
-                    table["Item"] == category,
-                    month
-                ].empty
-                else 0
-                for category in categories
+            value_cell.number_format = (
+                '0.00"%"'
             )
 
-        # Copy total-row style from nearest
-        # template total row if available.
+        else:
 
-        return total_row
+            value_cell.number_format = (
+                '#,##0.00'
+            )
 
 
-    income_total_row = write_table(
-        income_table,
-        income_categories,
-        income_start_row
+    # ========================================================
+    # COMMON HEADERS
+    # ========================================================
+
+    table_headers = [
+        "Category"
+    ] + months + [
+        "Total"
+    ]
+
+
+    # ========================================================
+    # INCOME SECTION
+    # ========================================================
+
+    income_section_row = 7
+
+    ws.merge_cells(
+        start_row=income_section_row,
+        start_column=1,
+        end_row=income_section_row,
+        end_column=14
+    )
+
+    cell = ws.cell(
+        income_section_row,
+        1
+    )
+
+    cell.value = "INCOME"
+
+    cell.fill = section_fill
+
+    cell.font = section_font
+
+
+    income_header_row = (
+        income_section_row + 1
     )
 
 
-    expense_total_row = write_table(
-        expense_table,
-        expense_categories,
-        expense_start_row
+    for col, header in enumerate(
+        table_headers,
+        start=1
+    ):
+
+        cell = ws.cell(
+            income_header_row,
+            col
+        )
+
+        cell.value = header
+
+        cell.fill = header_fill
+
+        cell.font = header_font
+
+        cell.border = border
+
+        cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+
+    for row_index, row in income_table.iterrows():
+
+        excel_row = (
+            income_header_row +
+            1 +
+            row_index
+        )
+
+        for col_index, column in enumerate(
+            table_headers,
+            start=1
+        ):
+
+            cell = ws.cell(
+                excel_row,
+                col_index
+            )
+
+            cell.value = row[column]
+
+            cell.font = normal_font
+
+            cell.border = border
+
+            if col_index > 1:
+
+                cell.number_format = (
+                    '#,##0.00'
+                )
+
+
+    income_total_row = (
+        income_header_row +
+        1 +
+        len(income_table)
     )
 
 
-    # --------------------------------------------------------
-    # SUMMARY VALUES
-    # --------------------------------------------------------
-
-    summary_values = {
-        "total monthly income": total_income,
-        "total income": total_income,
-        "total monthly expenses": total_expense,
-        "total expenses": total_expense,
-        "balance": total_balance,
-        "percentage of income spent": spend_percent,
-    }
+    ws.cell(
+        income_total_row,
+        1
+    ).value = "Total Income"
 
 
-    for row in ws.iter_rows():
+    for col in range(2, 15):
 
-        for cell in row:
+        column_letter = get_column_letter(
+            col
+        )
 
-            if cell.value is None:
-                continue
+        cell = ws.cell(
+            income_total_row,
+            col
+        )
 
-            label = str(
-                cell.value
-            ).strip().lower()
+        cell.value = (
+            f"=SUM("
+            f"{column_letter}"
+            f"{income_header_row + 1}:"
+            f"{column_letter}"
+            f"{income_total_row - 1}"
+            f")"
+        )
 
-            if label in summary_values:
+        cell.number_format = (
+            '#,##0.00'
+        )
 
-                target = ws.cell(
-                    cell.row,
-                    cell.column + 1
+
+    for col in range(1, 15):
+
+        cell = ws.cell(
+            income_total_row,
+            col
+        )
+
+        cell.fill = total_fill
+
+        cell.font = bold_font
+
+        cell.border = border
+
+
+    # ========================================================
+    # EXPENSE SECTION
+    # ========================================================
+
+    expense_section_row = (
+        income_total_row + 3
+    )
+
+    ws.merge_cells(
+        start_row=expense_section_row,
+        start_column=1,
+        end_row=expense_section_row,
+        end_column=14
+    )
+
+    cell = ws.cell(
+        expense_section_row,
+        1
+    )
+
+    cell.value = "EXPENSE"
+
+    cell.fill = section_fill
+
+    cell.font = section_font
+
+
+    expense_header_row = (
+        expense_section_row + 1
+    )
+
+
+    for col, header in enumerate(
+        table_headers,
+        start=1
+    ):
+
+        cell = ws.cell(
+            expense_header_row,
+            col
+        )
+
+        cell.value = header
+
+        cell.fill = header_fill
+
+        cell.font = header_font
+
+        cell.border = border
+
+        cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+
+    for row_index, row in expense_table.iterrows():
+
+        excel_row = (
+            expense_header_row +
+            1 +
+            row_index
+        )
+
+        for col_index, column in enumerate(
+            table_headers,
+            start=1
+        ):
+
+            cell = ws.cell(
+                excel_row,
+                col_index
+            )
+
+            cell.value = row[column]
+
+            cell.font = normal_font
+
+            cell.border = border
+
+            if col_index > 1:
+
+                cell.number_format = (
+                    '#,##0.00'
                 )
 
-                target.value = (
-                    summary_values[label]
+
+    expense_total_row = (
+        expense_header_row +
+        1 +
+        len(expense_table)
+    )
+
+
+    ws.cell(
+        expense_total_row,
+        1
+    ).value = "Total Expense"
+
+
+    for col in range(2, 15):
+
+        column_letter = get_column_letter(
+            col
+        )
+
+        cell = ws.cell(
+            expense_total_row,
+            col
+        )
+
+        cell.value = (
+            f"=SUM("
+            f"{column_letter}"
+            f"{expense_header_row + 1}:"
+            f"{column_letter}"
+            f"{expense_total_row - 1}"
+            f")"
+        )
+
+        cell.number_format = (
+            '#,##0.00'
+        )
+
+
+    for col in range(1, 15):
+
+        cell = ws.cell(
+            expense_total_row,
+            col
+        )
+
+        cell.fill = total_fill
+
+        cell.font = bold_font
+
+        cell.border = border
+
+
+    # ========================================================
+    # YEAR SUMMARY SECTION
+    # ========================================================
+
+    summary_section_row = (
+        expense_total_row + 3
+    )
+
+    ws.merge_cells(
+        start_row=summary_section_row,
+        start_column=1,
+        end_row=summary_section_row,
+        end_column=14
+    )
+
+    cell = ws.cell(
+        summary_section_row,
+        1
+    )
+
+    cell.value = "YEAR SUMMARY"
+
+    cell.fill = section_fill
+
+    cell.font = section_font
+
+
+    summary_header_row = (
+        summary_section_row + 1
+    )
+
+    summary_headers = [
+        "Type"
+    ] + months + [
+        "Year Total"
+    ]
+
+
+    for col, header in enumerate(
+        summary_headers,
+        start=1
+    ):
+
+        cell = ws.cell(
+            summary_header_row,
+            col
+        )
+
+        cell.value = header
+
+        cell.fill = header_fill
+
+        cell.font = header_font
+
+        cell.border = border
+
+        cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+
+    for row_index, row in summary.iterrows():
+
+        excel_row = (
+            summary_header_row +
+            1 +
+            row_index
+        )
+
+        for col_index, column in enumerate(
+            summary_headers,
+            start=1
+        ):
+
+            cell = ws.cell(
+                excel_row,
+                col_index
+            )
+
+            cell.value = row[column]
+
+            cell.font = normal_font
+
+            cell.border = border
+
+            if col_index > 1:
+
+                cell.number_format = (
+                    '#,##0.00'
                 )
-
-                if (
-                    "percentage"
-                    in label
-                ):
-                    target.number_format = (
-                        '0.00"%"'
-                    )
-                else:
-                    target.number_format = (
-                        '#,##0.00'
-                    )
-
-
-    # --------------------------------------------------------
-    # YEAR IN TITLE
-    # --------------------------------------------------------
-
-    for row in ws.iter_rows():
-
-        for cell in row:
-
-            if isinstance(
-                cell.value,
-                str
-            ):
-
-                for old_year in [
-                    "2024",
-                    "2025",
-                    "2026"
-                ]:
-
-                    if old_year in cell.value:
-
-                        cell.value = (
-                            cell.value.replace(
-                                old_year,
-                                str(selected_year)
-                            )
-                        )
 
 
     # ========================================================
     # CHART DATA
     # ========================================================
 
-    # Keep chart data far to the right.
-    # These columns are hidden.
+    chart_column = 17
 
-    chart_col = 30
-    chart_row = 2
+    chart_header_row = 2
+
 
     ws.cell(
-        chart_row,
-        chart_col
+        chart_header_row,
+        chart_column
     ).value = "Month"
 
     ws.cell(
-        chart_row,
-        chart_col + 1
+        chart_header_row,
+        chart_column + 1
     ).value = "Income"
 
     ws.cell(
-        chart_row,
-        chart_col + 2
+        chart_header_row,
+        chart_column + 2
     ).value = "Expense"
 
 
-    for index, month in enumerate(
+    for i, month in enumerate(
         months,
         start=1
     ):
 
-        row = chart_row + index
+        row = (
+            chart_header_row + i
+        )
 
         ws.cell(
             row,
-            chart_col
+            chart_column
         ).value = month
 
         ws.cell(
             row,
-            chart_col + 1
+            chart_column + 1
         ).value = monthly_income[
-            index - 1
+            i - 1
         ]
 
         ws.cell(
             row,
-            chart_col + 2
+            chart_column + 2
         ).value = monthly_expense[
-            index - 1
+            i - 1
         ]
 
 
-    # --------------------------------------------------------
-    # REMOVE EXISTING BROKEN CHARTS
-    # --------------------------------------------------------
-
-    ws._charts = []
-
-
-    # --------------------------------------------------------
-    # CREATE WORKING BAR CHART
-    # --------------------------------------------------------
+    # ========================================================
+    # BAR CHART
+    # ========================================================
 
     chart = BarChart()
 
@@ -995,8 +1114,8 @@ def create_excel_report():
     chart.style = 10
 
     chart.title = (
-        f"Monthly Income vs Expense - "
-        f"{selected_year}"
+        f"Monthly Income vs Expense "
+        f"- {selected_year}"
     )
 
     chart.y_axis.title = "Amount"
@@ -1010,17 +1129,18 @@ def create_excel_report():
 
     data_reference = Reference(
         ws,
-        min_col=chart_col + 1,
-        max_col=chart_col + 2,
-        min_row=chart_row,
-        max_row=chart_row + 12
+        min_col=chart_column + 1,
+        max_col=chart_column + 2,
+        min_row=chart_header_row,
+        max_row=chart_header_row + 12
     )
+
 
     category_reference = Reference(
         ws,
-        min_col=chart_col,
-        min_row=chart_row + 1,
-        max_row=chart_row + 12
+        min_col=chart_column,
+        min_row=chart_header_row + 1,
+        max_row=chart_header_row + 12
     )
 
 
@@ -1036,18 +1156,14 @@ def create_excel_report():
     chart.legend.position = "b"
 
 
-    # --------------------------------------------------------
-    # CHART LOCATION
-    # --------------------------------------------------------
-
-    chart_row_visible = max(
-        expense_total_row + 4,
-        38
+    chart_location_row = (
+        summary_header_row + 6
     )
+
 
     ws.add_chart(
         chart,
-        f"A{chart_row_visible}"
+        f"A{chart_location_row}"
     )
 
 
@@ -1055,47 +1171,39 @@ def create_excel_report():
     # HIDE CHART DATA
     # ========================================================
 
-    for col_number in range(
-        chart_col,
-        chart_col + 3
+    for col in range(
+        chart_column,
+        chart_column + 3
     ):
 
-        column_letter = ""
+        ws.column_dimensions[
+            get_column_letter(col)
+        ].hidden = True
 
-        number = col_number
 
-        while number > 0:
+    # ========================================================
+    # COLUMN WIDTHS
+    # ========================================================
 
-            number, remainder = divmod(
-                number - 1,
-                26
-            )
+    ws.column_dimensions["A"].width = 30
 
-            column_letter = (
-                chr(65 + remainder)
-                + column_letter
-            )
+    for col in range(2, 15):
 
         ws.column_dimensions[
-            column_letter
-        ].hidden = True
+            get_column_letter(col)
+        ].width = 13
 
 
     # ========================================================
     # EXCEL SETTINGS
     # ========================================================
 
+    # IMPORTANT:
+    # No freeze panes.
+
     ws.freeze_panes = None
 
     ws.sheet_view.showGridLines = False
-
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-
-    ws.page_setup.fitToWidth = 1
-
-    ws.page_setup.fitToHeight = 0
-
-    ws.page_setup.orientation = "landscape"
 
 
     # ========================================================
@@ -1117,63 +1225,29 @@ def create_excel_report():
 
 st.divider()
 
-st.subheader(
-    "📤 Download Excel Report"
-)
+st.subheader("📤 Excel Export")
 
 
-if template_path is None:
+try:
+
+    excel_file = create_excel_report()
+
+    st.download_button(
+        label="📥 Download Yearly Report Excel",
+        data=excel_file,
+        file_name=(
+            f"MoneyMate_Yearly_Report_"
+            f"{selected_year}.xlsx"
+        ),
+        mime=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        use_container_width=True
+    )
+
+except Exception as e:
 
     st.error(
-        "❌ Excel template not found."
+        f"Unable to create Excel report: {e}"
     )
-
-    st.code(
-        str(
-            BASE_DIR /
-            TEMPLATE_NAME
-        )
-    )
-
-    st.info(
-        "Upload MoneyMate_Annual_Budget_Template.xlsx "
-        "to the SAME GitHub folder as report.py."
-    )
-
-else:
-
-    try:
-
-        excel_file = (
-            create_excel_report()
-        )
-
-        st.download_button(
-            label=(
-                "📥 Download Annual "
-                "Budget Report"
-            ),
-            data=excel_file,
-            file_name=(
-                f"MoneyMate_Annual_Budget_"
-                f"{selected_year}.xlsx"
-            ),
-            mime=(
-                "application/vnd.openxmlformats-officedocument."
-                "spreadsheetml.sheet"
-            ),
-            use_container_width=True
-        )
-
-        st.success(
-            "✅ Annual Budget Excel report is ready."
-        )
-
-    except Exception as e:
-
-        st.error(
-            "Unable to create Excel report."
-        )
-
-        st.exception(e)
-
