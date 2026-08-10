@@ -1,219 +1,382 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+
 from utils.supabase_client import supabase
 
-# -------------------------------------------------
+
+# =========================================================
 # PAGE CONFIG
-# -------------------------------------------------
+# =========================================================
 st.set_page_config(
     page_title="MoneyMate Dashboard",
     page_icon="💰",
     layout="wide"
 )
 
-# -------------------------------------------------
+
+# =========================================================
 # LOGIN CHECK
-# -------------------------------------------------
+# =========================================================
 if "user" not in st.session_state:
     st.warning("Please log in first.")
     st.stop()
 
-st.title("💰 MoneyMate Dashboard")
-st.caption("Your clean financial overview")
 
-# Get logged-in user details to assign keys automatically
-user_id = st.session_state["user"].id if hasattr(st.session_state["user"], "id") else st.session_state["user"].get("id")
+# =========================================================
+# HEADER
+# =========================================================
+st.title("💰 MoneyMate")
+st.caption("Personal Finance Dashboard")
 
-# -------------------------------------------------
-# 1. FETCH & PROCESS DATABASE DATA
-# -------------------------------------------------
-response = (
-    supabase
-    .table("transactions")
-    .select("*")
-    .order("date", desc=True)
-    .execute()
-)
-df = pd.DataFrame(response.data)
 
-# Calculate financial indicators
-if not df.empty:
-    income = df.loc[df["type"].str.lower() == "income", "amount"].sum()
-    expense = df.loc[df["type"].str.lower() == "expense", "amount"].sum()
-else:
-    income, expense = 0.0, 0.0
+# =========================================================
+# LOAD TRANSACTIONS
+# =========================================================
+try:
+    response = (
+        supabase
+        .table("transactions")
+        .select("*")
+        .order("date", desc=True)
+        .execute()
+    )
+
+    data = response.data
+
+except Exception as e:
+    st.error(f"Unable to load transactions: {e}")
+    st.stop()
+
+
+# =========================================================
+# DATAFRAME
+# =========================================================
+df = pd.DataFrame(data)
+
+
+# =========================================================
+# NO DATA
+# =========================================================
+if df.empty:
+    st.info("📋 No transactions available yet.")
+    st.stop()
+
+
+# =========================================================
+# CLEAN DATA
+# =========================================================
+if "amount" in df.columns:
+    df["amount"] = pd.to_numeric(
+        df["amount"],
+        errors="coerce"
+    ).fillna(0)
+
+
+if "type" in df.columns:
+    df["type"] = (
+        df["type"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+
+# =========================================================
+# CALCULATE TOTALS
+# =========================================================
+income = df.loc[
+    df["type"] == "income",
+    "amount"
+].sum()
+
+expense = df.loc[
+    df["type"] == "expense",
+    "amount"
+].sum()
 
 balance = income - expense
-savings_pct = (balance / income) * 100 if income > 0 else 0.0
 
-# -------------------------------------------------
-# 2. CORE PERFORMANCE METRICS (KPIs)
-# -------------------------------------------------
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("💰 Total Income", f"₹{income:,.2f}")
-c2.metric("💸 Total Expense", f"₹{expense:,.2f}")
-c3.metric("🏦 Net Balance", f"₹{balance:,.2f}")
-c4.metric("📊 Savings Rate", f"{savings_pct:.1f}%")
+
+if income > 0:
+    savings_percentage = (
+        balance / income
+    ) * 100
+else:
+    savings_percentage = 0
+
+
+# =========================================================
+# KPI CARDS
+# =========================================================
+st.subheader("📊 Financial Overview")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        "💰 Total Income",
+        f"₹{income:,.2f}"
+    )
+
+with col2:
+    st.metric(
+        "💸 Total Expense",
+        f"₹{expense:,.2f}"
+    )
+
+with col3:
+    st.metric(
+        "🏦 Balance",
+        f"₹{balance:,.2f}"
+    )
+
+with col4:
+    st.metric(
+        "📊 Savings %",
+        f"{savings_percentage:.1f}%"
+    )
+
 
 st.divider()
 
-# -------------------------------------------------
-# 3. EXPENSE BREAKDOWN BY CATEGORY
-# -------------------------------------------------
-st.subheader("🥧 Expense Breakdown by Category")
 
-if not df.empty and not df[df["type"].str.lower() == "expense"].empty:
-    expense_df = df[df["type"].str.lower() == "expense"].copy()
-    
+# =========================================================
+# EXPENSE BY CATEGORY
+# =========================================================
+st.subheader("🥧 Expense by Category")
+
+expense_df = df[
+    df["type"] == "expense"
+].copy()
+
+
+if expense_df.empty:
+
+    st.info("No expense transactions available.")
+
+else:
+
     category_expense = (
         expense_df
-        .groupby("category", as_index=False)["amount"]
+        .groupby(
+            "category",
+            as_index=False
+        )["amount"]
         .sum()
-        .sort_values("amount", ascending=False)
+        .sort_values(
+            "amount",
+            ascending=False
+        )
     )
 
-    chart_col, table_col = st.columns()
-    
-    with chart_col:
-        fig = px.pie(
-            category_expense, 
-            names="category", 
-            values="amount", 
-            hole=0.4,
-            color_discrete_sequence=px.colors.sequential.RdBu
-        )
-        fig.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=300)
-        st.plotly_chart(fig, use_container_width=True)
+    chart_col, table_col = st.columns(
+        [1.4, 1]
+    )
 
+    # -----------------------------------------------------
+    # PIE CHART
+    # -----------------------------------------------------
+    with chart_col:
+
+        fig = px.pie(
+            category_expense,
+            names="category",
+            values="amount",
+            hole=0.45,
+            title="Expense Distribution"
+        )
+
+        fig.update_layout(
+            margin=dict(
+                t=50,
+                b=10,
+                l=10,
+                r=10
+            )
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    # -----------------------------------------------------
+    # CATEGORY TABLE
+    # -----------------------------------------------------
     with table_col:
+
+        st.markdown("### 📋 Category Wise")
+
+        category_display = (
+            category_expense
+            .rename(
+                columns={
+                    "category": "Category",
+                    "amount": "Amount"
+                }
+            )
+        )
+
+        category_display["Amount"] = (
+            category_display["Amount"]
+            .apply(lambda x: f"₹{x:,.2f}")
+        )
+
         st.dataframe(
-            category_expense.rename(columns={"category": "Category", "amount": "Total Amount (₹)"}),
-            use_container_width=True, 
+            category_display,
+            use_container_width=True,
             hide_index=True
         )
-else:
-    st.info("No expense data recorded yet to generate breakdown analytics.")
+
 
 st.divider()
 
-# -------------------------------------------------
-# 4. ACTION CENTER: ADD TRANSACTIONS
-# -------------------------------------------------
-st.subheader("⚡ Quick Actions")
-action_tab1, action_tab2 = st.tabs(["💵 Record New Income", "💸 Record New Expense"])
 
-# Record Income Tab
-# Record Income Tab
-with action_tab1:
-    with st.form("inc_form", clear_on_submit=True):
-        # Unpack the 4 columns individually instead of assigning to a single variable
-        col_a, col_b, col_c, col_d = st.columns(4)
-        
-        # Place each input inside its respective column object
-        inc_amt = col_a.number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
-        inc_cat = col_b.selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
-        inc_note = col_c.text_input("Note / Description", key="inc_n")
-        inc_date = col_d.date_input("Date", key="inc_d")
-        
-        if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
-            if inc_amt <= 0:
-                st.error("Please log an amount greater than ₹0.")
-            else:
-                try:
-                    supabase.table("transactions").insert({
-                        "user_id": user_id,
-                        "date": str(inc_date),
-                        "type": "Income",
-                        "category": inc_cat,
-                        "amount": float(inc_amt),
-                        "note": inc_note
-                    }).execute()
-                    st.success("Income synced to Supabase successfully! 🎉")
-                    st.rerun()
-                except Exception as db_error:
-                    st.error("❌ Database Write Failure! Check column names or RLS policies.")
-                    st.code(str(db_error))
+# =========================================================
+# INCOME VS EXPENSE
+# =========================================================
+st.subheader("📈 Income vs Expense")
 
-# Record Expense Tab
-with action_tab2:
-    with st.form("exp_form", clear_on_submit=True):
-        # Unpack the 4 columns individually here as well
-        col_e, col_f, col_g, col_h = st.columns(4)
-        
-        # Place each input inside its respective column object
-        exp_amt = col_e.number_input("Amount (₹)", min_value=0.0, step=100.0, key="exp_a")
-        exp_cat = col_f.selectbox("Category", [
-            "Food", "Travel", "Shopping", "Bills", "Education", "Entertainment",
-            "Medical", "Rent", "Groceries", "Fuel", "Electricity", "Mobile Recharge",
-            "Internet", "Subscriptions", "Clothing", "Household", "Insurance", "Other"
-        ], key="exp_c")
-        exp_note = col_g.text_input("Note / Description", key="exp_n")
-        exp_date = col_h.date_input("Date", key="exp_d")
-        
-        if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
-            if exp_amt <= 0:
-                st.error("Please log an amount greater than ₹0.")
-            else:
-                try:
-                    supabase.table("transactions").insert({
-                        "user_id": user_id,
-                        "date": str(exp_date),
-                        "type": "Expense",
-                        "category": exp_cat,
-                        "amount": float(exp_amt),
-                        "note": exp_note
-                    }).execute()
-                    st.success("Expense synced to Supabase successfully! 🛡️")
-                    st.rerun()
-                except Exception as db_error:
-                    st.error("❌ Database Write Failure! Check column names or RLS policies.")
-                    st.code(str(db_error))
 
-        if st.form_submit_button("➖ Save Expense Entry", use_container_width=True):
-            if exp_amt <= 0:
-                st.error("Please log an amount greater than ₹0.")
-            else:
-                try:
-                    supabase.table("transactions").insert({
-                        "user_id": user_id,  # Protects RLS requirements
-                        "date": str(exp_date),
-                        "type": "Expense",
-                        "category": exp_cat,
-                        "amount": float(exp_amt),
-                        "note": exp_note
-                    }).execute()
-                    st.success("Expense synced to Supabase successfully! 🛡️")
-                    st.rerun()
-                except Exception as db_error:
-                    st.error("❌ Database Write Failure! Check column names or RLS policies.")
-                    st.code(str(db_error))
+if "date" in df.columns:
 
-st.divider()
+    monthly_df = df.copy()
 
-# -------------------------------------------------
-# 5. ALL LIVE TRANSACTIONS HISTORY
-# -------------------------------------------------
-st.subheader("📋 Ledger History")
-
-if not df.empty:
-    display_columns = ["date", "type", "category", "amount", "note"]
-    available_columns = [col for col in display_columns if col in df.columns]
-    clean_history = df[available_columns].copy()
-    
-    st.dataframe(
-        clean_history.rename(columns=str.title), 
-        use_container_width=True, 
-        hide_index=True
+    monthly_df["date"] = pd.to_datetime(
+        monthly_df["date"],
+        errors="coerce"
     )
-else:
-    st.info("No historical entries located inside your database ledger.")
 
-# -------------------------------------------------
+    monthly_df = monthly_df.dropna(
+        subset=["date"]
+    )
+
+    if not monthly_df.empty:
+
+        monthly_df["month"] = (
+            monthly_df["date"]
+            .dt.to_period("M")
+            .astype(str)
+        )
+
+        monthly_summary = (
+            monthly_df
+            .groupby(
+                ["month", "type"],
+                as_index=False
+            )["amount"]
+            .sum()
+        )
+
+        monthly_summary["type"] = (
+            monthly_summary["type"]
+            .str.title()
+        )
+
+        fig_monthly = px.bar(
+            monthly_summary,
+            x="month",
+            y="amount",
+            color="type",
+            barmode="group",
+            title="Monthly Income vs Expense"
+        )
+
+        fig_monthly.update_layout(
+            xaxis_title="Month",
+            yaxis_title="Amount (₹)",
+            margin=dict(
+                t=50,
+                b=20,
+                l=20,
+                r=20
+            )
+        )
+
+        st.plotly_chart(
+            fig_monthly,
+            use_container_width=True
+        )
+
+
+st.divider()
+
+
+# =========================================================
+# RECENT TRANSACTIONS
+# =========================================================
+st.subheader("📋 Recent Transactions")
+
+recent_columns = [
+    "date",
+    "type",
+    "category",
+    "account",
+    "amount",
+    "note"
+]
+
+available_columns = [
+    column
+    for column in recent_columns
+    if column in df.columns
+]
+
+recent_df = (
+    df[
+        available_columns
+    ]
+    .head(10)
+    .copy()
+)
+
+
+# Format type
+if "type" in recent_df.columns:
+
+    recent_df["type"] = (
+        recent_df["type"]
+        .str.title()
+    )
+
+
+# Format amount
+if "amount" in recent_df.columns:
+
+    recent_df["amount"] = (
+        recent_df["amount"]
+        .apply(
+            lambda x: f"₹{x:,.2f}"
+        )
+    )
+
+
+# Rename columns
+recent_df = recent_df.rename(
+    columns={
+        "date": "Date",
+        "type": "Type",
+        "category": "Category",
+        "account": "Account",
+        "amount": "Amount",
+        "note": "Note"
+    }
+)
+
+
+st.dataframe(
+    recent_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# =========================================================
 # FOOTER
-# -------------------------------------------------
+# =========================================================
+st.divider()
+
 st.caption(
-    f"MoneyMate Dashboard • Live Connection Verified • "
-    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+    "💰 MoneyMate • Personal Finance Dashboard"
 )
