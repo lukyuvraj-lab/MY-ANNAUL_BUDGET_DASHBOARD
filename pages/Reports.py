@@ -61,7 +61,6 @@ expense_categories = sorted([
     "Bakery",
     "Beating",
     "Bike Maintenance",
-    "Bills",
     "Business Invesment",
     "Chit Fund",
     "Entertainment",
