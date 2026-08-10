@@ -102,24 +102,14 @@ st.subheader("⚡ Quick Actions")
 action_tab1, action_tab2 = st.tabs(["💵 Record New Income", "💸 Record New Expense"])
 
 # Record Income Tab
-        if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
-            if inc_amt <= 0:
-                st.error("Please log an amount greater than ₹0.")
-            else:
-                try:
-                    supabase.table("transactions").insert({
-                        "date": str(inc_date),
-                        "type": "Income",
-                        "category": inc_cat,
-                        "amount": float(inc_amt),
-                        "note": inc_note
-                    }).execute()
-                    st.success("Income synced to Supabase successfully! 🎉")
-                    st.rerun()
-                except Exception as db_error:
-                    st.error("❌ Database Write Failure!")
-                    st.code(str(db_error)) # This prints the explicit field issue
-
+with action_tab1:
+    with st.form("inc_form", clear_on_submit=True):
+        inc_cols = st.columns(4)
+        inc_amt = inc_cols[0].number_input("Amount (₹)", min_value=0.0, step=100.0, key="inc_a")
+        inc_cat = inc_cols[1].selectbox("Category", ["Salary", "Business", "Freelance", "Investment", "Gift", "Other"], key="inc_c")
+        inc_note = inc_cols[2].text_input("Note / Description", key="inc_n")
+        inc_date = inc_cols[3].date_input("Date", key="inc_d")
+        
         if st.form_submit_button("➕ Save Income Entry", use_container_width=True):
             if inc_amt <= 0:
                 st.error("Please log an amount greater than ₹0.")
