@@ -258,75 +258,52 @@ if save:
 st.divider()
 
 
-# =========================================================
-# TRANSACTION TABLE
-# =========================================================
+# -----------------------------
+# YOUR TRANSACTIONS
+# -----------------------------
 st.subheader("📋 Your Transactions")
 
+display_columns = [
+    "id",
+    "date",
+    "type",
+    "amount",
+    "category",
+    "account",
+    "note"
+]
 
-if df.empty:
+available_columns = [
+    c for c in display_columns
+    if c in df.columns
+]
 
-    st.info(
-        "No transactions yet. Add your first transaction above."
+display_df = df[available_columns].copy()
+
+# Rename ID to Transaction No.
+display_df = display_df.rename(
+    columns={
+        "id": "Txn No.",
+        "date": "Date",
+        "type": "Type",
+        "amount": "Amount",
+        "category": "Category",
+        "account": "Account",
+        "note": "Note"
+    }
+)
+
+# Format amount
+if "Amount" in display_df.columns:
+    display_df["Amount"] = display_df["Amount"].apply(
+        lambda x: f"₹{float(x):,.2f}"
     )
 
-else:
-
-    display_columns = [
-        "date",
-        "type",
-        "category",
-        "account",
-        "amount",
-        "note"
-    ]
-
-    available_columns = [
-        column
-        for column in display_columns
-        if column in df.columns
-    ]
-
-    display_df = df[
-        available_columns
-    ].copy()
-
-    if "amount" in display_df.columns:
-
-        display_df["amount"] = (
-            display_df["amount"]
-            .apply(
-                lambda x: f"₹{x:,.2f}"
-            )
-        )
-
-    if "type" in display_df.columns:
-
-        display_df["type"] = (
-            display_df["type"]
-            .astype(str)
-            .str.title()
-        )
-
-    display_df = display_df.rename(
-        columns={
-            "date": "Date",
-            "type": "Type",
-            "category": "Category",
-            "account": "Account",
-            "amount": "Amount",
-            "note": "Note"
-        }
-    )
-
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True
-    )
-
-
-st.divider()
+st.dataframe(
+    display_df,
+    use_container_width=True,
+    hide_index=True
+)
 
 
 # -----------------------------
