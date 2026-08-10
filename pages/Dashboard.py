@@ -1,115 +1,184 @@
 import streamlit as st
-from datetime import datetime
+import pandas as pd
+import plotly.express as px
 
-st.set_page_config(
-    page_title="MoneyMate Dashboard",
-    page_icon="💰",
-    layout="wide"
-)
+from utils.supabase_client import supabase
 
-if "user" not in st.session_state:
-    st.switch_page("pages/Login.py")
-    st.stop()
 
-# ============================================================
+# -------------------------------------------------
 # PAGE CONFIG
-# ============================================================
-
+# -------------------------------------------------
 st.set_page_config(
     page_title="MoneyMate Dashboard",
     page_icon="💰",
     layout="wide"
 )
 
-# ============================================================
-# LOGIN CHECK
-# ============================================================
 
+# -------------------------------------------------
+# LOGIN CHECK
+# -------------------------------------------------
 if "user" not in st.session_state:
-    st.switch_page("pages/Login.py")
+    st.warning("Please log in first.")
     st.stop()
 
-# ============================================================
-# USER
-# ============================================================
 
-user = st.session_state["user"]
+# -------------------------------------------------
+# TITLE
+# -------------------------------------------------
+st.title("💰 MoneyMate Dashboard")
+st.caption("Your financial overview")
 
-# ============================================================
-# TRANSACTIONS
-# ============================================================
 
-if "transactions" not in st.session_state:
-    st.session_state["transactions"] = []
-
-transactions = st.session_state["transactions"]
-
-# ============================================================
-# CALCULATE TOTALS
-# ============================================================
-
-total_income = sum(
-    float(t["Amount"])
-    for t in transactions
-    if t["Type"] == "Income"
+# -------------------------------------------------
+# LOAD TRANSACTIONS
+# -------------------------------------------------
+response = (
+    supabase
+    .table("transactions")
+    .select("*")
+    .order("date", desc=True)
+    .execute()
 )
 
-total_expense = sum(
-    float(t["Amount"])
-    for t in transactions
-    if t["Type"] == "Expense"
+df = pd.DataFrame(response.data)
+
+
+# -------------------------------------------------
+# EMPTY DATA
+# -------------------------------------------------
+if df.empty:
+    st.info("No transactions available yet.")
+    st.stop()
+
+
+# -------------------------------------------------
+# TOTALS
+# -------------------------------------------------
+income = df.loc[
+    df["type"].str.lower() == "income",
+    "amount"
+].sum()
+
+expense = df.loc[
+    df["type"].str.lower() == "expense",
+    "amount"
+].sum()
+
+balance = income - expense
+
+if income > 0:
+    savings = (balance / income) * 100
+else:
+    savings = 0
+
+
+# -------------------------------------------------
+# KPI CARDS
+# -------------------------------------------------
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric(
+    "💰 Total Income",
+    f"₹{income:,.2f}"
 )
 
-balance = total_income - total_expense
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-st.sidebar.title("💰 MoneyMate")
-
-menu = st.sidebar.radio(
-    "Menu",
-    [
-        "Dashboard",
-        "Add Income",
-        "Add Expense",
-        "Transactions"
-    ]
+c2.metric(
+    "💸 Total Expense",
+    f"₹{expense:,.2f}"
 )
 
-st.sidebar.markdown("---")
+c3.metric(
+    "🏦 Balance",
+    f"₹{balance:,.2f}"
+)
 
-if st.sidebar.button("🚪 Logout"):
+c4.metric(
+    "📊 Savings %",
+    f"{savings:.1f}%"
+)
 
-    st.session_state.pop("user", None)
 
-    st.switch_page("pages/Login.py")
+st.divider()
 
-# ============================================================
-# DASHBOARD
-# ============================================================
 
-if menu == "Dashboard":
+# -------------------------------------------------
+# EXPENSE BY CATEGORY
+# -------------------------------------------------
+st.subheader("🥧 Expense by Category")
 
-    st.title("💰 MoneyMate Dashboard")
+expense_df = df[
+    df["type"].str.lower() == "expense"
+].copy()
 
-    if hasattr(user, "email"):
-        st.write(f"Welcome, **{user.email}** 👋")
+if expense_df.empty:
+    st.info("No expense transactions yet.")
+else:
 
-    st.markdown("---")
+    category_expense = (
+        expense_df
+        .groupby("category", as_index=False)["amount"]
+        .sum()
+        .sort_values("amount", ascending=False)
+    )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.metric(
-            "💵 Total Income",
-            f"₹ {total_income:,.2f}"
+        fig = px.pie(
+            category_expense,
+            names="category",
+            values="amount",
+            hole=0.4
+        )
+
+        fig.update_layout(
+            margin=dict(t=20, b=20, l=20, r=20)
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
         )
 
     with col2:
-        st.metric(
-            "💸 Total Expense",
+        st.dataframe(
+            category_expense,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+st.divider()
+
+
+# -------------------------------------------------
+# PENDING / RECENT TRANSACTIONS
+# -------------------------------------------------
+st.subheader("📋 Recent Transactions")
+
+display_columns = [
+    "date",
+    "type",
+    "category",
+    "account",
+    "amount",
+    "note"
+]
+
+available_columns = [
+    column
+    for column in display_columns
+    if column in df.columns
+]
+
+recent_df = df.head(10)[available_columns].copy()
+
+st.dataframe(
+    recent_df,
+    use_container_width=True,
+    hide_index=True
+)            "💸 Total Expense",
             f"₹ {total_expense:,.2f}"
         )
 
