@@ -79,6 +79,7 @@ if total_income > 0:
 else:
     total_spend_percent = 0
 
+year_df = df[df["date"].dt.year == selected_year].copy()
 
 # ============================================================
 # KPI CARDS
