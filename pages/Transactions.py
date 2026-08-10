@@ -128,7 +128,7 @@ income_categories = [
     "Rental",
     "Refunds",
     "Commission",
-    "Sales"
+    "Sales",
     "Tax Refunds",
     "Other Income"
 ]
