@@ -5,9 +5,9 @@ from datetime import date
 from utils.supabase_client import supabase
 
 
-# -----------------------------
+# =========================================================
 # PAGE CONFIG
-# -----------------------------
+# =========================================================
 st.set_page_config(
     page_title="MoneyMate Transactions",
     page_icon="📋",
@@ -15,9 +15,9 @@ st.set_page_config(
 )
 
 
-# -----------------------------
+# =========================================================
 # LOGIN CHECK
-# -----------------------------
+# =========================================================
 if "user" not in st.session_state:
     st.warning("Please log in first.")
     st.stop()
@@ -25,104 +25,16 @@ if "user" not in st.session_state:
 user = st.session_state["user"]
 
 
-# -----------------------------
+# =========================================================
 # TITLE
-# -----------------------------
+# =========================================================
 st.title("📋 Transactions")
 st.caption("Add and manage your transactions")
 
 
-# -----------------------------
-# ADD TRANSACTION
-# -----------------------------
-st.subheader("➕ Add Transaction")
-
-with st.form("add_transaction_form"):
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        trans_date = st.date_input(
-            "Date",
-            value=date.today()
-        )
-
-        trans_type = st.selectbox(
-            "Type",
-            ["Income", "Expense"]
-        )
-
-        amount = st.number_input(
-            "Amount",
-            min_value=0.0,
-            step=100.0
-        )
-
-    with col2:
-        category = st.text_input(
-            "Category"
-        )
-
-        account = st.selectbox(
-            "Account",
-            [
-                "Cash",
-                "Bank",
-                "UPI",
-                "Credit Card"
-            ]
-        )
-
-        note = st.text_input(
-            "Note"
-        )
-
-    save = st.form_submit_button(
-        "💾 Save Transaction",
-        use_container_width=True
-    )
-
-
-# -----------------------------
-# SAVE TRANSACTION
-# -----------------------------
-if save:
-
-    if amount <= 0:
-        st.error("Please enter an amount greater than 0.")
-
-    elif not category.strip():
-        st.error("Please enter a category.")
-
-    else:
-
-        try:
-
-            supabase.table("transactions").insert({
-                "user_id": user.id,
-                "date": str(trans_date),
-                "type": trans_type,
-                "amount": amount,
-                "category": category.strip(),
-                "account": account,
-                "note": note.strip()
-            }).execute()
-
-            st.success("✅ Transaction saved successfully!")
-
-            st.rerun()
-
-        except Exception as e:
-
-            st.error(f"Save failed: {e}")
-
-
-st.divider()
-
-
-# -----------------------------
-# LOAD TRANSACTIONS
-# -----------------------------
+# =========================================================
+# LOAD USER TRANSACTIONS
+# =========================================================
 try:
 
     response = (
@@ -142,37 +54,255 @@ except Exception as e:
     st.stop()
 
 
-# -----------------------------
-# DISPLAY
-# -----------------------------
+# =========================================================
+# CALCULATE CURRENT BALANCE
+# =========================================================
 if df.empty:
 
-    st.info("📋 No transactions yet.")
+    balance = 0.0
 
 else:
 
-    st.subheader("📋 Your Transactions")
+    df["amount"] = pd.to_numeric(
+        df["amount"],
+        errors="coerce"
+    ).fillna(0)
+
+    df["type"] = (
+        df["type"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    total_income = df.loc[
+        df["type"] == "income",
+        "amount"
+    ].sum()
+
+    total_expense = df.loc[
+        df["type"] == "expense",
+        "amount"
+    ].sum()
+
+    balance = total_income - total_expense
+
+
+# =========================================================
+# BALANCE
+# =========================================================
+st.subheader("🏦 Current Balance")
+
+st.metric(
+    "Balance",
+    f"₹{balance:,.2f}"
+)
+
+
+st.divider()
+
+
+# =========================================================
+# CATEGORY LIST
+# =========================================================
+categories = [
+    "Food",
+    "Groceries",
+    "Travel",
+    "Transport",
+    "Shopping",
+    "Bills",
+    "Rent",
+    "Electricity",
+    "Internet",
+    "Mobile",
+    "Medical",
+    "Education",
+    "Entertainment",
+    "Subscriptions",
+    "EMI",
+    "Insurance",
+    "Salary",
+    "Business Income",
+    "Investment",
+    "Other"
+]
+
+
+# =========================================================
+# ACCOUNT LIST
+# =========================================================
+accounts = [
+    "Cash",
+    "Bank",
+    "UPI",
+    "Credit Card"
+]
+
+
+# =========================================================
+# ADD TRANSACTION
+# =========================================================
+st.subheader("➕ Add Transaction")
+
+with st.form("add_transaction_form"):
+
+    col1, col2 = st.columns(2)
+
+    # -----------------------------------------------------
+    # LEFT
+    # -----------------------------------------------------
+    with col1:
+
+        trans_date = st.date_input(
+            "Date",
+            value=date.today()
+        )
+
+        trans_type = st.selectbox(
+            "Type",
+            [
+                "Income",
+                "Expense"
+            ]
+        )
+
+        amount = st.number_input(
+            "Amount",
+            min_value=0.0,
+            step=100.0,
+            format="%.2f"
+        )
+
+    # -----------------------------------------------------
+    # RIGHT
+    # -----------------------------------------------------
+    with col2:
+
+        category = st.selectbox(
+            "Category",
+            categories
+        )
+
+        account = st.selectbox(
+            "Account",
+            accounts
+        )
+
+        note = st.text_input(
+            "Note",
+            placeholder="Optional"
+        )
+
+    save = st.form_submit_button(
+        "💾 Save Transaction",
+        use_container_width=True
+    )
+
+
+# =========================================================
+# SAVE TRANSACTION
+# =========================================================
+if save:
+
+    if amount <= 0:
+
+        st.error(
+            "Please enter an amount greater than 0."
+        )
+
+    else:
+
+        try:
+
+            supabase.table("transactions").insert(
+                {
+                    "user_id": user.id,
+                    "date": str(trans_date),
+                    "type": trans_type,
+                    "amount": amount,
+                    "category": category,
+                    "account": account,
+                    "note": note.strip()
+                }
+            ).execute()
+
+            st.success(
+                "✅ Transaction saved successfully!"
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(
+                f"Save failed: {e}"
+            )
+
+
+st.divider()
+
+
+# =========================================================
+# TRANSACTION TABLE
+# =========================================================
+st.subheader("📋 Your Transactions")
+
+
+if df.empty:
+
+    st.info(
+        "No transactions yet. Add your first transaction above."
+    )
+
+else:
 
     display_columns = [
         "date",
         "type",
-        "amount",
         "category",
         "account",
+        "amount",
         "note"
     ]
 
     available_columns = [
-        c for c in display_columns
-        if c in df.columns
+        column
+        for column in display_columns
+        if column in df.columns
     ]
 
-    display_df = df[available_columns].copy()
+    display_df = df[
+        available_columns
+    ].copy()
 
     if "amount" in display_df.columns:
-        display_df["amount"] = display_df["amount"].apply(
-            lambda x: f"₹{float(x):,.2f}"
+
+        display_df["amount"] = (
+            display_df["amount"]
+            .apply(
+                lambda x: f"₹{x:,.2f}"
+            )
         )
+
+    if "type" in display_df.columns:
+
+        display_df["type"] = (
+            display_df["type"]
+            .astype(str)
+            .str.title()
+        )
+
+    display_df = display_df.rename(
+        columns={
+            "date": "Date",
+            "type": "Type",
+            "category": "Category",
+            "account": "Account",
+            "amount": "Amount",
+            "note": "Note"
+        }
+    )
 
     st.dataframe(
         display_df,
@@ -181,12 +311,13 @@ else:
     )
 
 
-# -----------------------------
-# DELETE
-# -----------------------------
-if not df.empty:
+st.divider()
 
-    st.divider()
+
+# =========================================================
+# DELETE TRANSACTION
+# =========================================================
+if not df.empty:
 
     st.subheader("🗑️ Delete Transaction")
 
@@ -202,16 +333,23 @@ if not df.empty:
 
         try:
 
-            supabase.table("transactions") \
-                .delete() \
-                .eq("id", selected_id) \
-                .eq("user_id", user.id) \
+            (
+                supabase
+                .table("transactions")
+                .delete()
+                .eq("id", selected_id)
+                .eq("user_id", user.id)
                 .execute()
+            )
 
-            st.success("✅ Transaction deleted.")
+            st.success(
+                "✅ Transaction deleted successfully."
+            )
 
             st.rerun()
 
         except Exception as e:
 
-            st.error(f"Delete failed: {e}")
+            st.error(
+                f"Delete failed: {e}"
+            )
