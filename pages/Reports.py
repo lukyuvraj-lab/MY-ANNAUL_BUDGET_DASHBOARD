@@ -25,7 +25,7 @@ st.title("📊 MoneyMate - Yearly Report")
 # EXACTLY FROM Transactions.py
 # ============================================================
 
-income_categories = [
+income_categories = sorted([
     "Salary",
     "Business",
     "Interest",
@@ -40,9 +40,9 @@ income_categories = [
     "Sales",
     "Tax Refunds",
     "Other Income"
-]
+])
 
-expense_categories = [
+expense_categories = sorted([
     "Food & Dining",
     "Travel",
     "Transportation",
@@ -78,7 +78,7 @@ expense_categories = [
     "Taxes",
     "Interest",
     "Other Expense"
-]
+])
 
 months = [
     "Jan", "Feb", "Mar", "Apr",
