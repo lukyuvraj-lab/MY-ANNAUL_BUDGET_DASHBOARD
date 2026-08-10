@@ -424,3 +424,118 @@ for _, row in budget_df.iterrows():
 
 
     st.divider()
+
+# =========================================================
+# EDIT BUDGET
+# =========================================================
+st.divider()
+
+st.subheader("✏️ Edit Budget")
+
+budget_options = budget_df["id"].tolist()
+
+selected_budget_id = st.selectbox(
+    "Select Budget",
+    budget_options,
+    key="edit_budget_id"
+)
+
+selected_budget = budget_df[
+    budget_df["id"] == selected_budget_id
+].iloc[0]
+
+edit_category = st.selectbox(
+    "Category",
+    categories,
+    index=(
+        categories.index(selected_budget["category"])
+        if selected_budget["category"] in categories
+        else 0
+    ),
+    key="edit_budget_category"
+)
+
+edit_amount = st.number_input(
+    "Budget Amount",
+    min_value=0.0,
+    value=float(selected_budget["amount"]),
+    step=500.0,
+    key="edit_budget_amount"
+)
+
+if st.button(
+    "✏️ Update Budget",
+    use_container_width=True,
+    key="update_budget_button"
+):
+
+    if edit_amount <= 0:
+
+        st.error("Budget must be greater than 0.")
+
+    else:
+
+        try:
+
+            supabase.table("budgets").update({
+                "category": edit_category,
+                "amount": edit_amount
+            }).eq(
+                "id",
+                selected_budget_id
+            ).eq(
+                "user_id",
+                user.id
+            ).execute()
+
+            st.success(
+                "✅ Budget updated successfully!"
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(
+                f"Update failed: {e}"
+            )
+
+
+# =========================================================
+# DELETE BUDGET
+# =========================================================
+st.divider()
+
+st.subheader("🗑️ Delete Budget")
+
+delete_budget_id = st.selectbox(
+    "Select Budget to Delete",
+    budget_options,
+    key="delete_budget_id"
+)
+
+if st.button(
+    "🗑️ Delete Selected Budget",
+    use_container_width=True,
+    key="delete_budget_button"
+):
+
+    try:
+
+        supabase.table("budgets") \
+            .delete() \
+            .eq("id", delete_budget_id) \
+            .eq("user_id", user.id) \
+            .execute()
+
+        st.success(
+            "✅ Budget deleted successfully!"
+        )
+
+        st.rerun()
+
+    except Exception as e:
+
+        st.error(
+            f"Delete failed: {e}"
+        )
