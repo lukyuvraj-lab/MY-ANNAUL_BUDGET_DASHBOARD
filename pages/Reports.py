@@ -58,6 +58,58 @@ df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
 
 df = df.dropna(subset=["date"])
 
+# ============================================================
+# 📊 YEARLY KPI SUMMARY
+# ============================================================
+
+total_income = year_df.loc[
+    year_df["type"].astype(str).str.lower() == "income",
+    "amount"
+].sum()
+
+total_expense = year_df.loc[
+    year_df["type"].astype(str).str.lower() == "expense",
+    "amount"
+].sum()
+
+total_savings = total_income - total_expense
+
+if total_income > 0:
+    total_spend_percent = (total_expense / total_income) * 100
+else:
+    total_spend_percent = 0
+
+
+# ============================================================
+# KPI CARDS
+# ============================================================
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        "💰 Total Income",
+        f"₹{total_income:,.2f}"
+    )
+
+with col2:
+    st.metric(
+        "💸 Total Expense",
+        f"₹{total_expense:,.2f}"
+    )
+
+with col3:
+    st.metric(
+        "🏦 Total Savings",
+        f"₹{total_savings:,.2f}"
+    )
+
+with col4:
+    st.metric(
+        "📊 Total Spend %",
+        f"{total_spend_percent:.2f}%"
+    )
+
 
 # ------------------------------------------------------------
 # Year selector
