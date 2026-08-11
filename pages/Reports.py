@@ -1853,7 +1853,7 @@ def create_excel_report():
 
     chart.title = (
         f"Monthly Income vs Expense "
-        f"- {selected_year}"
+        f"- {report_title}"
     )
 
     chart.y_axis.title = "Amount"
