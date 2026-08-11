@@ -406,6 +406,8 @@ total_expense = float(
     expense_df["amount"].sum()
 )
 
+total_balance = total_income - total_expense
+
 balance = (
     total_income -
     total_expense
