@@ -3,22 +3,6 @@ import streamlit as st
 from utils.supabase_client import supabase
 import os
 
-# =========================================================
-# MONEY MATE LOGO
-# =========================================================
-
-logo_path = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "assets",
-    "moneymate_logo.png"
-)
-
-if os.path.exists(logo_path):
-    st.image(
-        logo_path,
-        width=220
-    )
-
 
 # =========================================================
 # PAGE CONFIG
@@ -71,6 +55,21 @@ if st.session_state.get("user"):
 
     st.stop()
 
+# =========================================================
+# MONEY MATE LOGO
+# =========================================================
+
+logo_path = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "assets",
+    "moneymate_logo.png"
+)
+
+if os.path.exists(logo_path):
+    st.image(
+        logo_path,
+        width=220
+    )
 
 # =========================================================
 # HEADER
