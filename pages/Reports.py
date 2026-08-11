@@ -1108,11 +1108,120 @@ def create_excel_report():
     wb = Workbook()
 
     ws = wb.active
-    ws.title = "Financial Report"
 
-    # -----------------------------------------------------
-    # STYLES
-    # -----------------------------------------------------
+    ws.title = "Yearly Report"
+
+
+    # ========================================================
+    # PREPARE DATA USING THE CURRENT REPORT FILTER
+    # ========================================================
+    # Keep the OLD Excel layout, but use data from Reports new.py.
+    # The workbook remains ONE SHEET only.
+
+    excel_income_categories = sorted(
+        income_df["category"].dropna().astype(str).unique().tolist()
+    ) if not income_df.empty else []
+
+    excel_expense_categories = sorted(
+        expense_df["category"].dropna().astype(str).unique().tolist()
+    ) if not expense_df.empty else []
+
+    def build_excel_category_table(source_df, categories):
+        table = pd.DataFrame(
+            0.0,
+            index=categories,
+            columns=months
+        )
+
+        if not source_df.empty:
+            temp_source = source_df.copy()
+            temp_source["Month"] = temp_source["date"].dt.month
+
+            grouped = (
+                temp_source
+                .groupby(["category", "Month"])["amount"]
+                .sum()
+            )
+
+            for category in categories:
+                for month_number in range(1, 13):
+                    try:
+                        value = grouped.loc[
+                            (category, month_number)
+                        ]
+                    except KeyError:
+                        value = 0.0
+
+                    table.loc[
+                        category,
+                        months[month_number - 1]
+                    ] = float(value)
+
+        table.index.name = "Category"
+        table["Total"] = table.sum(axis=1)
+
+        return table.reset_index()
+
+    income_table = build_excel_category_table(
+        income_df,
+        excel_income_categories
+    )
+
+    expense_table = build_excel_category_table(
+        expense_df,
+        excel_expense_categories
+    )
+
+    monthly_income = []
+    monthly_expense = []
+    monthly_balance = []
+
+    for month_number in range(1, 13):
+
+        income_value = income_df.loc[
+            income_df["date"].dt.month == month_number,
+            "amount"
+        ].sum()
+
+        expense_value = expense_df.loc[
+            expense_df["date"].dt.month == month_number,
+            "amount"
+        ].sum()
+
+        monthly_income.append(float(income_value))
+        monthly_expense.append(float(expense_value))
+        monthly_balance.append(
+            float(income_value - expense_value)
+        )
+
+    summary = pd.DataFrame({
+        "Type": [
+            "Income",
+            "Expense",
+            "Balance"
+        ]
+    })
+
+    for i, month in enumerate(months):
+        summary[month] = [
+            monthly_income[i],
+            monthly_expense[i],
+            monthly_balance[i]
+        ]
+
+    summary["Year Total"] = [
+        total_income,
+        total_expense,
+        balance
+    ]
+
+    spend_percent = expense_percent
+
+
+    # ========================================================
+    # COLORS
+    # ========================================================
+
     title_fill = PatternFill(
         "solid",
         fgColor="1F4E78"
@@ -1133,11 +1242,22 @@ def create_excel_report():
         fgColor="E2F0D9"
     )
 
-    white_font = Font(
+
+    # ========================================================
+    # FONTS
+    # ========================================================
+
+    title_font = Font(
         name="Calibri",
         size=16,
         bold=True,
         color="FFFFFF"
+    )
+
+    section_font = Font(
+        name="Calibri",
+        size=13,
+        bold=True
     )
 
     header_font = Font(
@@ -1147,16 +1267,21 @@ def create_excel_report():
         color="FFFFFF"
     )
 
+    normal_font = Font(
+        name="Calibri",
+        size=11
+    )
+
     bold_font = Font(
         name="Calibri",
         size=11,
         bold=True
     )
 
-    normal_font = Font(
-        name="Calibri",
-        size=11
-    )
+
+    # ========================================================
+    # BORDER
+    # ========================================================
 
     thin_side = Side(
         style="thin",
@@ -1170,37 +1295,437 @@ def create_excel_report():
         bottom=thin_side
     )
 
-    # -----------------------------------------------------
+
+    # ========================================================
     # TITLE
-    # -----------------------------------------------------
+    # ========================================================
+
     ws.merge_cells(
-        "A1:H1"
+        start_row=1,
+        start_column=1,
+        end_row=1,
+        end_column=14
     )
 
-    title = ws["A1"]
+    title_cell = ws.cell(
+        1,
+        1
+    )
 
-    title.value = (
-        f"MoneyMate Financial Report - "
+    title_cell.value = (
+        f"MoneyMate - Report "
         f"{report_title}"
     )
 
-    title.fill = title_fill
-    title.font = white_font
-    title.alignment = Alignment(
-        horizontal="center"
+    title_cell.fill = title_fill
+
+    title_cell.font = title_font
+
+    title_cell.alignment = Alignment(
+        horizontal="center",
+        vertical="center"
     )
 
     ws.row_dimensions[1].height = 30
 
-    # -----------------------------------------------------
-    # SUMMARY
-    # -----------------------------------------------------
-    summary_start = 3
+
+    # ========================================================
+    # KPI
+    # ========================================================
+
+    kpis = [
+        (
+            "Total Income",
+            total_income
+        ),
+        (
+            "Total Expense",
+            total_expense
+        ),
+        (
+            "Balance",
+            total_balance
+        ),
+        (
+            "Spend %",
+            spend_percent
+        )
+    ]
+
+
+    for col, (label, value) in enumerate(
+        kpis,
+        start=1
+    ):
+
+        label_cell = ws.cell(
+            3,
+            col
+        )
+
+        label_cell.value = label
+
+        label_cell.fill = section_fill
+
+        label_cell.font = bold_font
+
+        label_cell.border = border
+
+        label_cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+
+        value_cell = ws.cell(
+            4,
+            col
+        )
+
+        value_cell.value = value
+
+        value_cell.font = bold_font
+
+        value_cell.border = border
+
+        value_cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+        if label == "Spend %":
+
+            value_cell.number_format = (
+                '0.00"%"'
+            )
+
+        else:
+
+            value_cell.number_format = (
+                '#,##0.00'
+            )
+
+
+    # ========================================================
+    # COMMON HEADERS
+    # ========================================================
+
+    table_headers = [
+        "Category"
+    ] + months + [
+        "Total"
+    ]
+
+
+    # ========================================================
+    # INCOME SECTION
+    # ========================================================
+
+    income_section_row = 7
+
+    ws.merge_cells(
+        start_row=income_section_row,
+        start_column=1,
+        end_row=income_section_row,
+        end_column=14
+    )
+
+    cell = ws.cell(
+        income_section_row,
+        1
+    )
+
+    cell.value = "INCOME"
+
+    cell.fill = section_fill
+
+    cell.font = section_font
+
+
+    income_header_row = (
+        income_section_row + 1
+    )
+
+
+    for col, header in enumerate(
+        table_headers,
+        start=1
+    ):
+
+        cell = ws.cell(
+            income_header_row,
+            col
+        )
+
+        cell.value = header
+
+        cell.fill = header_fill
+
+        cell.font = header_font
+
+        cell.border = border
+
+        cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+
+    for row_index, row in income_table.iterrows():
+
+        excel_row = (
+            income_header_row +
+            1 +
+            row_index
+        )
+
+        for col_index, column in enumerate(
+            table_headers,
+            start=1
+        ):
+
+            cell = ws.cell(
+                excel_row,
+                col_index
+            )
+
+            cell.value = row[column]
+
+            cell.font = normal_font
+
+            cell.border = border
+
+            if col_index > 1:
+
+                cell.number_format = (
+                    '#,##0.00'
+                )
+
+
+    income_total_row = (
+        income_header_row +
+        1 +
+        len(income_table)
+    )
+
+
+    ws.cell(
+        income_total_row,
+        1
+    ).value = "Total Income"
+
+
+    for col in range(2, 15):
+
+        column_letter = get_column_letter(
+            col
+        )
+
+        cell = ws.cell(
+            income_total_row,
+            col
+        )
+
+        cell.value = (
+            f"=SUM("
+            f"{column_letter}"
+            f"{income_header_row + 1}:"
+            f"{column_letter}"
+            f"{income_total_row - 1}"
+            f")"
+        )
+
+        cell.number_format = (
+            '#,##0.00'
+        )
+
+
+    for col in range(1, 15):
+
+        cell = ws.cell(
+            income_total_row,
+            col
+        )
+
+        cell.fill = total_fill
+
+        cell.font = bold_font
+
+        cell.border = border
+
+
+    # ========================================================
+    # EXPENSE SECTION
+    # ========================================================
+
+    expense_section_row = (
+        income_total_row + 3
+    )
+
+    ws.merge_cells(
+        start_row=expense_section_row,
+        start_column=1,
+        end_row=expense_section_row,
+        end_column=14
+    )
+
+    cell = ws.cell(
+        expense_section_row,
+        1
+    )
+
+    cell.value = "EXPENSE"
+
+    cell.fill = section_fill
+
+    cell.font = section_font
+
+
+    expense_header_row = (
+        expense_section_row + 1
+    )
+
+
+    for col, header in enumerate(
+        table_headers,
+        start=1
+    ):
+
+        cell = ws.cell(
+            expense_header_row,
+            col
+        )
+
+        cell.value = header
+
+        cell.fill = header_fill
+
+        cell.font = header_font
+
+        cell.border = border
+
+        cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+
+    for row_index, row in expense_table.iterrows():
+
+        excel_row = (
+            expense_header_row +
+            1 +
+            row_index
+        )
+
+        for col_index, column in enumerate(
+            table_headers,
+            start=1
+        ):
+
+            cell = ws.cell(
+                excel_row,
+                col_index
+            )
+
+            cell.value = row[column]
+
+            cell.font = normal_font
+
+            cell.border = border
+
+            if col_index > 1:
+
+                cell.number_format = (
+                    '#,##0.00'
+                )
+
+
+    expense_total_row = (
+        expense_header_row +
+        1 +
+        len(expense_table)
+    )
+
+
+    ws.cell(
+        expense_total_row,
+        1
+    ).value = "Total Expense"
+
+
+    for col in range(2, 15):
+
+        column_letter = get_column_letter(
+            col
+        )
+
+        cell = ws.cell(
+            expense_total_row,
+            col
+        )
+
+        cell.value = (
+            f"=SUM("
+            f"{column_letter}"
+            f"{expense_header_row + 1}:"
+            f"{column_letter}"
+            f"{expense_total_row - 1}"
+            f")"
+        )
+
+        cell.number_format = (
+            '#,##0.00'
+        )
+
+
+    for col in range(1, 15):
+
+        cell = ws.cell(
+            expense_total_row,
+            col
+        )
+
+        cell.fill = total_fill
+
+        cell.font = bold_font
+
+        cell.border = border
+
+
+    # ========================================================
+    # YEAR SUMMARY SECTION
+    # ========================================================
+
+    summary_section_row = (
+        expense_total_row + 3
+    )
+
+    ws.merge_cells(
+        start_row=summary_section_row,
+        start_column=1,
+        end_row=summary_section_row,
+        end_column=14
+    )
+
+    cell = ws.cell(
+        summary_section_row,
+        1
+    )
+
+    cell.value = "YEAR SUMMARY"
+
+    cell.fill = section_fill
+
+    cell.font = section_font
+
+
+    summary_header_row = (
+        summary_section_row + 1
+    )
 
     summary_headers = [
-        "Metric",
-        "Amount"
+        "Type"
+    ] + months + [
+        "Year Total"
     ]
+
 
     for col, header in enumerate(
         summary_headers,
@@ -1208,491 +1733,218 @@ def create_excel_report():
     ):
 
         cell = ws.cell(
-            summary_start,
+            summary_header_row,
             col
         )
 
         cell.value = header
+
         cell.fill = header_fill
+
         cell.font = header_font
+
         cell.border = border
+
         cell.alignment = Alignment(
             horizontal="center"
         )
 
 
-    summary_rows = [
-        [
-            "Total Income",
-            total_income
-        ],
-        [
-            "Total Expense",
-            total_expense
-        ],
-        [
-            "Balance",
-            balance
-        ],
-        [
-            "Savings %",
-            savings_percent
-        ]
-    ]
+    for row_index, row in summary.iterrows():
 
+        excel_row = (
+            summary_header_row +
+            1 +
+            row_index
+        )
 
-    for row_index, row in enumerate(
-        summary_rows,
-        start=summary_start + 1
-    ):
-
-        for col_index, value in enumerate(
-            row,
+        for col_index, column in enumerate(
+            summary_headers,
             start=1
         ):
 
             cell = ws.cell(
-                row_index,
+                excel_row,
                 col_index
             )
 
-            cell.value = value
-            cell.font = bold_font
+            cell.value = row[column]
+
+            cell.font = normal_font
+
             cell.border = border
 
-            if col_index == 2:
+            if col_index > 1:
 
-                if row[0] == "Savings %":
-
-                    cell.number_format = (
-                        '0.00"%"'
-                    )
-
-                else:
-
-                    cell.number_format = (
-                        '#,##0.00'
-                    )
-
-
-    # -----------------------------------------------------
-    # CATEGORY SECTION
-    # -----------------------------------------------------
-    category_start = (
-        summary_start +
-        len(summary_rows) +
-        3
-    )
-
-    ws.merge_cells(
-        start_row=category_start,
-        start_column=1,
-        end_row=category_start,
-        end_column=3
-    )
-
-    cell = ws.cell(
-        category_start,
-        1
-    )
-
-    cell.value = "CATEGORY-WISE EXPENSE"
-    cell.fill = section_fill
-    cell.font = bold_font
-
-
-    category_headers = [
-        "Category",
-        "Amount",
-        "Percentage"
-    ]
-
-
-    for col, header in enumerate(
-        category_headers,
-        start=1
-    ):
-
-        cell = ws.cell(
-            category_start + 1,
-            col
-        )
-
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-
-
-    if not category_report.empty:
-
-        for index, row in category_report.iterrows():
-
-            excel_row = (
-                category_start +
-                2 +
-                index
-            )
-
-            ws.cell(
-                excel_row,
-                1
-            ).value = row["Category"]
-
-            ws.cell(
-                excel_row,
-                2
-            ).value = float(
-                row["Amount"]
-            )
-
-            ws.cell(
-                excel_row,
-                3
-            ).value = float(
-                row["Percentage"]
-            )
-
-            for col in range(1, 4):
-
-                ws.cell(
-                    excel_row,
-                    col
-                ).border = border
-
-            ws.cell(
-                excel_row,
-                2
-            ).number_format = (
-                '#,##0.00'
-            )
-
-            ws.cell(
-                excel_row,
-                3
-            ).number_format = (
-                '0.00"%"'
-            )
-
-
-    # -----------------------------------------------------
-    # BUDGET SECTION
-    # -----------------------------------------------------
-    budget_start = (
-        category_start +
-        max(
-            len(category_report),
-            1
-        ) +
-        4
-    )
-
-    ws.merge_cells(
-        start_row=budget_start,
-        start_column=1,
-        end_row=budget_start,
-        end_column=6
-    )
-
-    cell = ws.cell(
-        budget_start,
-        1
-    )
-
-    cell.value = "BUDGET VS ACTUAL"
-    cell.fill = section_fill
-    cell.font = bold_font
-
-
-    budget_headers = [
-        "Category",
-        "Budget",
-        "Actual",
-        "Remaining",
-        "Utilization",
-        "Status"
-    ]
-
-
-    for col, header in enumerate(
-        budget_headers,
-        start=1
-    ):
-
-        cell = ws.cell(
-            budget_start + 1,
-            col
-        )
-
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-
-
-    if not budget_report.empty:
-
-        for index, row in budget_report.iterrows():
-
-            excel_row = (
-                budget_start +
-                2 +
-                index
-            )
-
-            values = [
-                row["Category"],
-                row["Budget"],
-                row["Actual"],
-                row["Remaining"],
-                row["Utilization"],
-                row["Status"]
-            ]
-
-            for col, value in enumerate(
-                values,
-                start=1
-            ):
-
-                cell = ws.cell(
-                    excel_row,
-                    col
+                cell.number_format = (
+                    '#,##0.00'
                 )
 
-                cell.value = value
-                cell.border = border
-                cell.font = normal_font
 
-                if col in [
-                    2,
-                    3,
-                    4
-                ]:
+    # ========================================================
+    # CHART DATA
+    # ========================================================
 
-                    cell.number_format = (
-                        '#,##0.00'
-                    )
+    chart_column = 17
 
-                if col == 5:
-
-                    cell.number_format = (
-                        '0.00"%"'
-                    )
+    chart_header_row = 2
 
 
-    # -----------------------------------------------------
-    # ACCOUNT SECTION
-    # -----------------------------------------------------
-    account_start = (
-        budget_start +
-        max(
-            len(budget_report),
-            1
-        ) +
-        4
-    )
+    ws.cell(
+        chart_header_row,
+        chart_column
+    ).value = "Month"
 
-    ws.merge_cells(
-        start_row=account_start,
-        start_column=1,
-        end_row=account_start,
-        end_column=4
-    )
+    ws.cell(
+        chart_header_row,
+        chart_column + 1
+    ).value = "Income"
 
-    cell = ws.cell(
-        account_start,
-        1
-    )
-
-    cell.value = "ACCOUNT-WISE REPORT"
-    cell.fill = section_fill
-    cell.font = bold_font
+    ws.cell(
+        chart_header_row,
+        chart_column + 2
+    ).value = "Expense"
 
 
-    account_headers = [
-        "Account",
-        "Income",
-        "Expense",
-        "Balance"
-    ]
-
-
-    for col, header in enumerate(
-        account_headers,
+    for i, month in enumerate(
+        months,
         start=1
     ):
 
-        cell = ws.cell(
-            account_start + 1,
-            col
+        row = (
+            chart_header_row + i
         )
 
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
+        ws.cell(
+            row,
+            chart_column
+        ).value = month
+
+        ws.cell(
+            row,
+            chart_column + 1
+        ).value = monthly_income[
+            i - 1
+        ]
+
+        ws.cell(
+            row,
+            chart_column + 2
+        ).value = monthly_expense[
+            i - 1
+        ]
 
 
-    if not account_report.empty:
+    # ========================================================
+    # BAR CHART
+    # ========================================================
 
-        for index, row in account_report.iterrows():
+    chart = BarChart()
 
-            excel_row = (
-                account_start +
-                2 +
-                index
-            )
+    chart.type = "col"
 
-            values = [
-                row["Account"],
-                row["Income"],
-                row["Expense"],
-                row["Balance"]
-            ]
+    chart.style = 10
 
-            for col, value in enumerate(
-                values,
-                start=1
-            ):
-
-                cell = ws.cell(
-                    excel_row,
-                    col
-                )
-
-                cell.value = value
-                cell.border = border
-
-                if col > 1:
-
-                    cell.number_format = (
-                        '#,##0.00'
-                    )
-
-
-    # -----------------------------------------------------
-    # TRANSACTIONS SHEET
-    # -----------------------------------------------------
-    tx_ws = wb.create_sheet(
-        "Transactions"
+    chart.title = (
+        f"Monthly Income vs Expense "
+        f"- {selected_year}"
     )
 
-    tx_columns = [
-        "Date",
-        "Type",
-        "Amount",
-        "Category",
-        "Account",
-        "Note"
-    ]
+    chart.y_axis.title = "Amount"
 
-    for col, header in enumerate(
-        tx_columns,
-        start=1
-    ):
+    chart.x_axis.title = "Month"
 
-        cell = tx_ws.cell(
-            1,
-            col
-        )
+    chart.height = 8
 
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
+    chart.width = 16
 
 
-    if not report_df.empty:
-
-        for index, row in report_df.iterrows():
-
-            excel_row = index + 2
-
-            values = [
-                row["date"].strftime(
-                    "%d-%m-%Y"
-                ),
-                str(
-                    row["type"]
-                ).title(),
-                float(
-                    row["amount"]
-                ),
-                row["category"],
-                row["account"],
-                row["note"]
-            ]
-
-            for col, value in enumerate(
-                values,
-                start=1
-            ):
-
-                cell = tx_ws.cell(
-                    excel_row,
-                    col
-                )
-
-                cell.value = value
-                cell.border = border
-
-                if col == 3:
-
-                    cell.number_format = (
-                        '#,##0.00'
-                    )
-
-
-    # -----------------------------------------------------
-    # COLUMN WIDTHS
-    # -----------------------------------------------------
-    for worksheet in [
+    data_reference = Reference(
         ws,
-        tx_ws
-    ]:
-
-        for column_cells in worksheet.columns:
-
-            max_length = 0
-
-            column_letter = (
-                get_column_letter(
-                    column_cells[0].column
-                )
-            )
-
-            for cell in column_cells:
-
-                try:
-                    value_length = len(
-                        str(cell.value)
-                    )
-                    max_length = max(
-                        max_length,
-                        value_length
-                    )
-                except Exception:
-                    pass
-
-            worksheet.column_dimensions[
-                column_letter
-            ].width = min(
-                max(
-                    max_length + 2,
-                    12
-                ),
-                35
-            )
+        min_col=chart_column + 1,
+        max_col=chart_column + 2,
+        min_row=chart_header_row,
+        max_row=chart_header_row + 12
+    )
 
 
-    # -----------------------------------------------------
+    category_reference = Reference(
+        ws,
+        min_col=chart_column,
+        min_row=chart_header_row + 1,
+        max_row=chart_header_row + 12
+    )
+
+
+    chart.add_data(
+        data_reference,
+        titles_from_data=True
+    )
+
+    chart.set_categories(
+        category_reference
+    )
+
+    chart.legend.position = "b"
+
+
+    chart_location_row = (
+        summary_header_row + 6
+    )
+
+
+    ws.add_chart(
+        chart,
+        f"A{chart_location_row}"
+    )
+
+
+    # ========================================================
+    # HIDE CHART DATA
+    # ========================================================
+
+    for col in range(
+        chart_column,
+        chart_column + 3
+    ):
+
+        ws.column_dimensions[
+            get_column_letter(col)
+        ].hidden = True
+
+
+    # ========================================================
+    # COLUMN WIDTHS
+    # ========================================================
+
+    ws.column_dimensions["A"].width = 30
+
+    for col in range(2, 15):
+
+        ws.column_dimensions[
+            get_column_letter(col)
+        ].width = 13
+
+
+    # ========================================================
+    # EXCEL SETTINGS
+    # ========================================================
+
+    # IMPORTANT:
+    # No freeze panes.
+
+    ws.freeze_panes = None
+
+    ws.sheet_view.showGridLines = False
+
+
+    # ========================================================
     # SAVE
-    # -----------------------------------------------------
+    # ========================================================
+
     output = BytesIO()
 
-    wb.save(
-        output
-    )
+    wb.save(output)
 
     output.seek(0)
 
@@ -1758,3 +2010,4 @@ st.caption(
     f"MoneyMate • {report_title} • "
     f"Currency: {currency_name}"
 )
+
