@@ -1,5 +1,6 @@
 import streamlit as st
-from supabase import create_client
+
+from utils.supabase_client import supabase
 
 
 # =========================================================
@@ -7,74 +8,147 @@ from supabase import create_client
 # =========================================================
 st.set_page_config(
     page_title="MoneyMate Login",
-    page_icon="🔐"
+    page_icon="🔐",
+    layout="centered"
 )
 
 
 # =========================================================
-# SUPABASE
+# IF ALREADY LOGGED IN
 # =========================================================
-SUPABASE_URL = "https://wkelsfwfdecgqibeolnk.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZWxzZndmZGVjZ3FpYmVvbG5rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NjExOTYsImV4cCI6MjEwMTMzNzE5Nn0.aNB1owMWx2ddzqe9m1iDF9w3PLE0diBTEaMzMMHBJYY"
+if st.session_state.get("user"):
 
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
+    st.success("You are already logged in.")
+
+    if st.button(
+        "🏠 Open Dashboard",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/Dashboard.py"
+        )
+
+    if st.button(
+        "Logout",
+        use_container_width=True
+    ):
+
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
+
+        for key in [
+            "user",
+            "access_token",
+            "refresh_token"
+        ]:
+
+            st.session_state.pop(
+                key,
+                None
+            )
+
+        st.rerun()
+
+    st.stop()
+
+
+# =========================================================
+# HEADER
+# =========================================================
+st.title("🔐 MoneyMate")
+
+st.subheader(
+    "Login to your account"
+)
+
+st.caption(
+    "Personal Finance Dashboard"
 )
 
 
 # =========================================================
-# TITLE
+# LOGIN FORM
 # =========================================================
-st.title("🔐 MoneyMate Login")
+with st.form("login_form"):
 
-email = st.text_input("Email")
-password = st.text_input(
-    "Password",
-    type="password"
-)
+    email = st.text_input(
+        "Email",
+        placeholder="Enter your email"
+    )
 
-col1, col2 = st.columns(2)
+    password = st.text_input(
+        "Password",
+        type="password",
+        placeholder="Enter your password"
+    )
+
+    login_clicked = st.form_submit_button(
+        "🔐 Login",
+        use_container_width=True
+    )
 
 
 # =========================================================
 # LOGIN
 # =========================================================
-with col1:
+if login_clicked:
 
-    if st.button(
-        "Login",
-        use_container_width=True
-    ):
+    email = email.strip()
 
-        if not email or not password:
+    if not email or not password:
 
-            st.warning(
-                "Please enter email and password."
+        st.warning(
+            "Please enter your email and password."
+        )
+
+    else:
+
+        try:
+
+            response = (
+                supabase.auth
+                .sign_in_with_password({
+                    "email": email,
+                    "password": password
+                })
             )
 
-        else:
+            if not response.user:
 
-            try:
-
-                response = (
-                    supabase.auth
-                    .sign_in_with_password({
-                        "email": email,
-                        "password": password
-                    })
+                st.error(
+                    "Login failed. User information was not returned."
                 )
 
-                # Save user
-                st.session_state["user"] = response.user
+            elif not response.session:
 
-                # IMPORTANT:
-                # Save Supabase authentication session
-                st.session_state["access_token"] = (
+                st.error(
+                    "Login failed. Authentication session was not returned."
+                )
+
+            else:
+
+                # -----------------------------------------
+                # SAVE USER
+                # -----------------------------------------
+                st.session_state["user"] = (
+                    response.user
+                )
+
+                # -----------------------------------------
+                # SAVE AUTH TOKENS
+                # -----------------------------------------
+                st.session_state[
+                    "access_token"
+                ] = (
                     response.session.access_token
                 )
 
-                st.session_state["refresh_token"] = (
+                st.session_state[
+                    "refresh_token"
+                ] = (
                     response.session.refresh_token
                 )
 
@@ -86,48 +160,58 @@ with col1:
                     "pages/Dashboard.py"
                 )
 
-            except Exception as e:
+        except Exception as e:
+
+            error_message = str(e)
+
+            if "Invalid login credentials" in error_message:
 
                 st.error(
-                    f"Login failed: {e}"
+                    "❌ Invalid email or password."
+                )
+
+            elif "Email not confirmed" in error_message:
+
+                st.error(
+                    "📧 Please confirm your email before logging in."
+                )
+
+            else:
+
+                st.error(
+                    f"❌ Login failed: {error_message}"
                 )
 
 
 # =========================================================
 # SIGN UP
 # =========================================================
-with col2:
+st.divider()
 
-    if st.button(
-        "Sign Up",
-        use_container_width=True
-    ):
+st.subheader(
+    "🆕 New to MoneyMate?"
+)
 
-        if not email or not password:
+st.write(
+    "Create a new account to start managing your finances."
+)
 
-            st.warning(
-                "Please enter email and password."
-            )
 
-        else:
+if st.button(
+    "📝 Create Account",
+    use_container_width=True
+):
 
-            try:
+    st.switch_page(
+        "pages/SignUp.py"
+    )
 
-                response = (
-                    supabase.auth
-                    .sign_up({
-                        "email": email,
-                        "password": password
-                    })
-                )
 
-                st.success(
-                    "✅ Account created! "
-                    "Please check your email."
-                )
+# =========================================================
+# FOOTER
+# =========================================================
+st.divider()
 
-            except Exception as e:
-
-                st.error(
-                    f"Sign Up failed: {e}"
-                )
+st.caption(
+    "💰 MoneyMate • Secure Personal Finance Management"
+    )
