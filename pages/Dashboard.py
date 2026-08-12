@@ -386,6 +386,335 @@ with col4:
         f"{savings_percentage:.1f}%"
     )
 
+# =========================================================
+# BUDGET DATA
+# =========================================================
+try:
+
+    budget_response = (
+        supabase
+        .table("budgets")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("month", str(month_start))
+        .execute()
+    )
+
+    budget_df = pd.DataFrame(
+        budget_response.data or []
+    )
+
+except Exception as e:
+
+    budget_df = pd.DataFrame()
+
+    st.warning(
+        f"Budget data could not be loaded: {e}"
+    )
+
+
+# =========================================================
+# CLEAN BUDGET
+# =========================================================
+if not budget_df.empty:
+
+    if "amount" not in budget_df.columns:
+
+        budget_df["amount"] = 0.0
+
+    else:
+
+        budget_df["amount"] = pd.to_numeric(
+            budget_df["amount"],
+            errors="coerce"
+        ).fillna(0.0)
+
+    if "category" not in budget_df.columns:
+
+        budget_df["category"] = ""
+
+
+# =========================================================
+# BUDGET VS ACTUAL
+# =========================================================
+if budget_df.empty:
+
+    total_budget = 0.0
+    budget_actual = monthly_expense
+    budget_remaining = 0.0
+    budget_percentage = 0.0
+    budget_summary = pd.DataFrame()
+
+else:
+
+    total_budget = float(
+        budget_df["amount"].sum()
+    )
+
+    monthly_expenses = month_df[
+        month_df["type"] == "expense"
+    ].copy()
+
+    if monthly_expenses.empty:
+
+        spent_by_category = {}
+
+    else:
+
+        spent_by_category = (
+            monthly_expenses
+            .groupby("category")["amount"]
+            .sum()
+            .to_dict()
+        )
+
+
+    budget_rows = []
+
+    for _, row in budget_df.iterrows():
+
+        category_name = str(
+            row.get(
+                "category",
+                ""
+            )
+        )
+
+        budget_amount = float(
+            row.get(
+                "amount",
+                0
+            )
+        )
+
+        actual_amount = float(
+            spent_by_category.get(
+                category_name,
+                0
+            )
+        )
+
+        remaining_amount = (
+            budget_amount -
+            actual_amount
+        )
+
+        if budget_amount > 0:
+
+            utilization = (
+                actual_amount /
+                budget_amount
+            ) * 100
+
+        else:
+
+            utilization = 0
+
+
+        if utilization > 100:
+
+            status = "🔴 Over Budget"
+
+        elif utilization >= 80:
+
+            status = "🟠 Near Limit"
+
+        else:
+
+            status = "🟢 On Track"
+
+
+        budget_rows.append({
+            "Category": category_name,
+            "Budget": budget_amount,
+            "Actual": actual_amount,
+            "Remaining": remaining_amount,
+            "Utilization": utilization,
+            "Status": status
+        })
+
+
+    budget_summary = pd.DataFrame(
+        budget_rows
+    )
+
+    budget_actual = float(
+        budget_summary["Actual"].sum()
+    )
+
+    budget_remaining = (
+        total_budget -
+        budget_actual
+    )
+
+    if total_budget > 0:
+
+        budget_percentage = (
+            budget_actual /
+            total_budget
+        ) * 100
+
+    else:
+
+        budget_percentage = 0
+
+
+# =========================================================
+# BUDGET OVERVIEW
+# =========================================================
+st.divider()
+
+st.subheader(
+    f"💰 Budget Overview — "
+    f"{month_start.strftime('%B %Y')}"
+)
+
+
+b1, b2, b3, b4 = st.columns(4)
+
+
+with b1:
+
+    st.metric(
+        "Budget",
+        money(total_budget)
+    )
+
+
+with b2:
+
+    st.metric(
+        "Budget Used",
+        money(budget_actual)
+    )
+
+
+with b3:
+
+    if total_budget > 0:
+
+        st.metric(
+            "Remaining",
+            money(budget_remaining)
+        )
+
+    else:
+
+        st.metric(
+            "Remaining",
+            "No Budget"
+        )
+
+
+with b4:
+
+    if total_budget > 0:
+
+        st.metric(
+            "Used",
+            f"{budget_percentage:.1f}%"
+        )
+
+    else:
+
+        st.metric(
+            "Used",
+            "0%"
+        )
+
+
+# =========================================================
+# BUDGET PROGRESS
+# =========================================================
+if total_budget > 0:
+
+    progress_value = min(
+        max(
+            budget_percentage / 100,
+            0
+        ),
+        1
+    )
+
+    st.progress(
+        progress_value
+    )
+
+
+    if budget_percentage > 100:
+
+        st.error(
+            f"🔴 Budget exceeded by "
+            f"{money(abs(budget_remaining))}"
+        )
+
+    elif budget_percentage >= 80:
+
+        st.warning(
+            f"⚠️ {budget_percentage:.1f}% "
+            f"of the monthly budget has been used."
+        )
+
+    else:
+
+        st.success(
+            f"✅ {budget_percentage:.1f}% "
+            f"of the monthly budget has been used."
+        )
+
+else:
+
+    st.info(
+        "💡 No budget has been created for "
+        f"{month_start.strftime('%B %Y')}."
+    )
+
+
+# =========================================================
+# BUDGET CATEGORY STATUS
+# =========================================================
+if not budget_summary.empty:
+
+    st.write("### 📋 Budget Status")
+
+    budget_display = budget_summary.copy()
+
+    budget_display["Budget"] = (
+        budget_display["Budget"]
+        .apply(money)
+    )
+
+    budget_display["Actual"] = (
+        budget_display["Actual"]
+        .apply(money)
+    )
+
+    budget_display["Remaining"] = (
+        budget_display["Remaining"]
+        .apply(money)
+    )
+
+    budget_display["Utilization"] = (
+        budget_display["Utilization"]
+        .apply(
+            lambda x: f"{x:.1f}%"
+        )
+    )
+
+    st.dataframe(
+        budget_display[
+            [
+                "Category",
+                "Budget",
+                "Actual",
+                "Remaining",
+                "Utilization",
+                "Status"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
 
 
 
@@ -567,6 +896,57 @@ else:
 # =========================================================
 # BUDGET UTILIZATION CHART
 # =========================================================
+if not budget_summary.empty:
+
+    st.divider()
+
+    st.subheader(
+        "📊 Budget vs Actual by Category"
+    )
+
+    budget_chart_df = budget_summary[
+        [
+            "Category",
+            "Budget",
+            "Actual"
+        ]
+    ].copy()
+
+    budget_chart_df = budget_chart_df.melt(
+        id_vars=["Category"],
+        value_vars=[
+            "Budget",
+            "Actual"
+        ],
+        var_name="Type",
+        value_name="Amount"
+    )
+
+    fig_budget = px.bar(
+        budget_chart_df,
+        x="Category",
+        y="Amount",
+        color="Type",
+        barmode="group",
+        title="Budget vs Actual"
+    )
+
+    fig_budget.update_layout(
+        xaxis_title="Category",
+        yaxis_title=f"Amount ({currency_symbol.strip()})",
+        margin=dict(
+            t=50,
+            b=20,
+            l=20,
+            r=20
+        )
+    )
+
+    st.plotly_chart(
+        fig_budget,
+        use_container_width=True
+    )
+
 
 # =========================================================
 # RECENT TRANSACTIONS
