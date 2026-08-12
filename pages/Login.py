@@ -70,6 +70,7 @@ if os.path.exists(logo_path):
         logo_path,
         width=220
     )
+else
 
 # =========================================================
 # HEADER
