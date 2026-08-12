@@ -59,17 +59,30 @@ if st.session_state.get("user"):
 # MONEY MATE LOGO
 # =========================================================
 
-logo_path = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "assets",
-    "moneymate_logo.png"
-)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-if os.path.exists(logo_path):
+logo_candidates = [
+    os.path.join(BASE_DIR, "assets", "moneymate_logo.png"),
+    os.path.join(BASE_DIR, "assets", "moneymate_logo.jpg"),
+    os.path.join(BASE_DIR, "assets", "logo.png"),
+    os.path.join(BASE_DIR, "assets", "Logo.png"),
+    os.path.join(BASE_DIR, "assets", "logo.jpg"),
+]
+
+logo_path = None
+
+for path in logo_candidates:
+    if os.path.exists(path):
+        logo_path = path
+        break
+
+if logo_path:
     st.image(
         logo_path,
         width=220
     )
+else:
+    st.warning("MoneyMate logo not found in the assets folder.")
 # =========================================================
 # HEADER
 # =========================================================
