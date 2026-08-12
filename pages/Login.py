@@ -56,7 +56,7 @@ if st.session_state.get("user"):
     st.stop()
 
 # =========================================================
-# MONEY MATE LOGO
+# MONEY MATE LOGO & HEADER (SIDE-BY-SIDE)
 # =========================================================
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,25 +76,24 @@ for path in logo_candidates:
         logo_path = path
         break
 
-if logo_path:
-    st.image(
-        logo_path,
-        width=220
-    )
-else:
-    st.warning("MoneyMate logo not found in the assets folder.")
-# =========================================================
-# HEADER
-# =========================================================
-st.title("🔐 MoneyMate")
+# Create two side-by-side columns
+# [3, 1] means the text column is 3x wider than the logo column
+col1, col2 = st.columns([3, 1], vertical_alignment="center")
 
-st.subheader(
-    "Login to your account"
-)
+with col1:
+    st.title("🔐 MoneyMate")
+    st.subheader("Login to your account")
+    st.caption("Personal Finance Dashboard")
 
-st.caption(
-    "Personal Finance Dashboard"
-)
+with col2:
+    if logo_path:
+        st.image(
+            logo_path,
+            use_container_width=True # Automatically scales to fit the column width
+        )
+    else:
+        st.warning("No logo found.")
+
 
 
 # =========================================================
