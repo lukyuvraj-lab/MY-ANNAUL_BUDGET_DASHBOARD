@@ -1,5 +1,4 @@
 import streamlit as st
-
 from utils.supabase_client import supabase
 import os
 
