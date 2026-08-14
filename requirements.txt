@@ -3,3 +3,4 @@ supabase
 pandas
 plotly
 openpyxl
+streamlit-cookies-manager-v2
