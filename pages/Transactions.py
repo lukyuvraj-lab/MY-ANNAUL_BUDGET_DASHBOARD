@@ -68,6 +68,7 @@ DEFAULT_EXPENSE_CATEGORIES = [
     "Bills",
     "Chiti",
     "Credit Card",
+    "Festival",
     "Entertainment",
     "Education",
     "Electricity",
@@ -88,6 +89,8 @@ DEFAULT_EXPENSE_CATEGORIES = [
     "Shopping",
     "Subscriptions",
     "Shop",
+    "Toll",
+    "praking",
     "Travel",
     "Transport",
     "Trip",
@@ -145,17 +148,22 @@ if not settings_accounts:
 # =========================================================
 # COMBINE CUSTOM SETTINGS WITH INCOME CATEGORIES
 # =========================================================
-income_categories = DEFAULT_INCOME_CATEGORIES.copy()
+income_categories = list(dict.fromkeys(
+    str(x).strip()
+    for x in DEFAULT_INCOME_CATEGORIES
+    if str(x).strip()
+))
 
-expense_categories = settings_categories.copy()
+expense_categories = list(dict.fromkeys(
+    str(x).strip()
+    for x in settings_categories
+    if str(x).strip()
+))
 
 
-# Add custom Settings categories to income too,
-# while keeping the existing income categories.
-for item in settings_categories:
-
-    if item not in income_categories:
-        income_categories.append(item)
+# Income and Expense use separate category lists.
+# Custom categories remain in the Expense list unless they are
+# explicitly part of the default Income categories.
 
 
 # =========================================================
@@ -336,6 +344,14 @@ else:
     category_options = expense_categories
 
 
+# Category is outside the form so it updates immediately
+# when Income / Expense is changed.
+category = st.selectbox(
+    "Category",
+    category_options,
+    key="new_transaction_category"
+)
+
 with st.form("add_transaction_form"):
 
     col1, col2 = st.columns(2)
@@ -363,12 +379,6 @@ with st.form("add_transaction_form"):
     # RIGHT
     # -----------------------------------------------------
     with col2:
-
-        category = st.selectbox(
-            "Category",
-            category_options,
-            key="new_transaction_category"
-        )
 
         account = st.selectbox(
             "Account",
@@ -884,3 +894,4 @@ if not df.empty:
             st.error(
                 f"Delete failed: {e}"
     )
+
