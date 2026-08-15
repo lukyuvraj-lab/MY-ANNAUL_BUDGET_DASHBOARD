@@ -12,6 +12,21 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown(
+    """
+    <style>
+    /* Remove Plotly chart toolbar from the entire app */
+    .modebar-container {
+        display: none !important;
+    }
+
+    .modebar {
+        display: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # =========================================================
 # RESTORE SUPABASE SESSION
