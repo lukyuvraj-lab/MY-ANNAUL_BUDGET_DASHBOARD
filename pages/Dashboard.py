@@ -270,34 +270,57 @@ total_balance = (
 
 
 # =========================================================
-# SELECT MONTH
+# DASHBOARD PERIOD
 # =========================================================
-selected_month = st.date_input(
+period_option = st.selectbox(
     "📅 Dashboard Month",
-    value=date.today().replace(day=1),
-    key="dashboard_month"
+    ["Current Month", "Current Year", "Full Year"],
+    index=0,
+    key="dashboard_period"
 )
 
-month_start = selected_month.replace(day=1)
+today = date.today()
 
-if month_start.month == 12:
-    next_month = month_start.replace(
-        year=month_start.year + 1,
-        month=1
-    )
+if period_option == "Current Year":
+    period_start = date(today.year, 1, 1)
+    period_end = date(today.year + 1, 1, 1)
+    period_label = f"Current Year — {today.year}"
+
+elif period_option == "Full Year":
+    period_start = date(today.year, 1, 1)
+    period_end = date(today.year + 1, 1, 1)
+    period_label = f"Full Year — {today.year}"
+
 else:
-    next_month = month_start.replace(
-        month=month_start.month + 1
+    selected_month = st.date_input(
+        "Select Month",
+        value=today.replace(day=1),
+        key="dashboard_month"
     )
+    period_start = selected_month.replace(day=1)
+
+    if period_start.month == 12:
+        period_end = date(period_start.year + 1, 1, 1)
+    else:
+        period_end = date(
+            period_start.year,
+            period_start.month + 1,
+            1
+        )
+
+    period_label = period_start.strftime("%B %Y")
+
+month_start = period_start
+next_month = period_end
 
 
 # =========================================================
 # MONTHLY TRANSACTIONS
 # =========================================================
 month_df = df[
-    (df["date"] >= pd.Timestamp(month_start))
+    (df["date"] >= pd.Timestamp(period_start))
     &
-    (df["date"] < pd.Timestamp(next_month))
+    (df["date"] < pd.Timestamp(period_end))
 ].copy()
 
 
@@ -366,8 +389,7 @@ with a3:
 st.divider()
 
 st.subheader(
-    f"📊 Financial Overview — "
-    f"{month_start.strftime('%B %Y')}"
+    f"📊 Financial Overview — {period_label}"
 )
 
 
@@ -579,6 +601,60 @@ else:
         "No transactions available yet."
     )
 
+
+# =========================================================
+# BUDGET UTILIZATION CHART
+# =========================================================
+if not budget_summary.empty:
+
+    st.divider()
+
+    st.subheader(
+        "📊 Budget vs Actual by Category"
+    )
+
+    budget_chart_df = budget_summary[
+        [
+            "Category",
+            "Budget",
+            "Actual"
+        ]
+    ].copy()
+
+    budget_chart_df = budget_chart_df.melt(
+        id_vars=["Category"],
+        value_vars=[
+            "Budget",
+            "Actual"
+        ],
+        var_name="Type",
+        value_name="Amount"
+    )
+
+    fig_budget = px.bar(
+        budget_chart_df,
+        x="Category",
+        y="Amount",
+        color="Type",
+        barmode="group",
+        title="Budget vs Actual"
+    )
+
+    fig_budget.update_layout(
+        xaxis_title="Category",
+        yaxis_title=f"Amount ({currency_symbol.strip()})",
+        margin=dict(
+            t=50,
+            b=20,
+            l=20,
+            r=20
+        )
+    )
+
+    st.plotly_chart(
+        fig_budget,
+        use_container_width=True
+    )
 
 
 # =========================================================
