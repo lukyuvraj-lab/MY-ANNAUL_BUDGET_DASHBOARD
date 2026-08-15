@@ -510,14 +510,14 @@ else:
             )
         )
 
-    st.plotly_chart(
-    fig_monthly,
-    use_container_width=True,
-    config={
-        "displayModeBar": False,
-        "staticPlot": True
-    }
-)
+            st.plotly_chart(
+            fig_monthly,
+            use_container_width=True,
+            config={
+                "displayModeBar": False,
+                "staticPlot": True
+            }
+        )
 
 
     with table_col:
