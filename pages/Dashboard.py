@@ -510,7 +510,7 @@ else:
             )
         )
 
-        st.plotly_chart(
+    st.plotly_chart(
     fig_monthly,
     use_container_width=True,
     config={
