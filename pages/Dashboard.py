@@ -511,12 +511,9 @@ else:
         )
 
             st.plotly_chart(
-            fig_monthly,
+            fig,
             use_container_width=True,
-            config={
-                "displayModeBar": False,
-                "staticPlot": True
-            }
+            config={"displayModeBar": False, "staticPlot": True}
         )
 
 
