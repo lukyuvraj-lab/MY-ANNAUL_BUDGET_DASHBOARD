@@ -336,28 +336,39 @@ trans_type = st.selectbox(
 )
 
 # Keep Income Category and Expense Category completely separate.
-if trans_type == "Income":
-    income_category = st.selectbox(
-        "Income Category",
-        income_categories,
-        key="new_income_category"
-    )
-    category = income_category
-else:
-    expense_category = st.selectbox(
-        "Expense Category",
-        expense_categories,
-        key="new_expense_category"
-    )
-    category = expense_category
+# =========================================================
+# ADD TRANSACTION
+# =========================================================
+st.subheader("➕ Add Transaction")
 
 with st.form("add_transaction_form"):
 
+    # Type
+    trans_type = st.selectbox(
+        "Type",
+        ["Income", "Expense"],
+        key="new_transaction_type"
+    )
+
+    # Separate category selection
+    if trans_type == "Income":
+
+        category = st.selectbox(
+            "Income Category",
+            income_categories,
+            key="new_income_category"
+        )
+
+    else:
+
+        category = st.selectbox(
+            "Expense Category",
+            expense_categories,
+            key="new_expense_category"
+        )
+
     col1, col2 = st.columns(2)
 
-    # -----------------------------------------------------
-    # LEFT
-    # -----------------------------------------------------
     with col1:
 
         trans_date = st.date_input(
@@ -374,9 +385,6 @@ with st.form("add_transaction_form"):
             key="new_transaction_amount"
         )
 
-    # -----------------------------------------------------
-    # RIGHT
-    # -----------------------------------------------------
     with col2:
 
         account = st.selectbox(
