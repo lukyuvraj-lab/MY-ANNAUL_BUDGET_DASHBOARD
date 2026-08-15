@@ -510,7 +510,7 @@ else:
             )
         )
 
-            st.plotly_chart(
+        st.plotly_chart(
             fig,
             use_container_width=True,
             config={"displayModeBar": False, "staticPlot": True}
@@ -743,3 +743,4 @@ st.caption(
     f"💰 MoneyMate • Personal Finance Dashboard • "
     f"Currency: {settings_currency}"
 )
+
