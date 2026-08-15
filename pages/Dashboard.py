@@ -16,6 +16,33 @@ st.set_page_config(
 )
 
 
+
+# =========================================================
+# COMPACT DASHBOARD FONT
+# =========================================================
+st.markdown("""
+<style>
+html, body, [class*="css"] {
+    font-size: 14px !important;
+}
+h1 {
+    font-size: 1.65rem !important;
+}
+h2 {
+    font-size: 1.35rem !important;
+}
+h3 {
+    font-size: 1.1rem !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 1.35rem !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 0.82rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =========================================================
 # RESTORE SUPABASE SESSION
 # =========================================================
@@ -486,7 +513,7 @@ else:
         st.plotly_chart(
             fig,
             use_container_width=True,
-            config={"displayModeBar": False}
+            config={"displayModeBar": False, "staticPlot": True}
         )
 
 
@@ -596,7 +623,7 @@ if not df.empty:
         st.plotly_chart(
             fig_monthly,
             use_container_width=True,
-            config={"displayModeBar": False}
+            config={"displayModeBar": False, "staticPlot": True}
         )
 
     else:
@@ -611,6 +638,11 @@ else:
         "No transactions available yet."
     )
 
+
+# =========================================================
+if not budget_summary.empty:
+
+    st.divider()
 
 # =========================================================
 # RECENT TRANSACTIONS
@@ -701,6 +733,7 @@ else:
     )
 
 
+
 # =========================================================
 # FOOTER
 # =========================================================
@@ -710,4 +743,3 @@ st.caption(
     f"💰 MoneyMate • Personal Finance Dashboard • "
     f"Currency: {settings_currency}"
 )
-
