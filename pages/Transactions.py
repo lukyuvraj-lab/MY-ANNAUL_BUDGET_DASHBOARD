@@ -321,19 +321,7 @@ with k3:
 st.divider()
 
 
-# =========================================================
-# ADD TRANSACTION
-# =========================================================
-st.subheader("➕ Add Transaction")
 
-st.caption("Income and Expense categories are kept separate.")
-
-# Transaction type
-trans_type = st.selectbox(
-    "Type",
-    ["Income", "Expense"],
-    key="new_transaction_type"
-)
 
 # Keep Income Category and Expense Category completely separate.
 # =========================================================
