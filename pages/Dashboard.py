@@ -613,59 +613,6 @@ else:
 
 
 # =========================================================
-if not budget_summary.empty:
-
-    st.divider()
-
-    st.subheader(
-        "📊 Budget vs Actual by Category"
-    )
-
-    budget_chart_df = budget_summary[
-        [
-            "Category",
-            "Budget",
-            "Actual"
-        ]
-    ].copy()
-
-    budget_chart_df = budget_chart_df.melt(
-        id_vars=["Category"],
-        value_vars=[
-            "Budget",
-            "Actual"
-        ],
-        var_name="Type",
-        value_name="Amount"
-    )
-
-    fig_budget = px.bar(
-        budget_chart_df,
-        x="Category",
-        y="Amount",
-        color="Type",
-        barmode="group",
-        title="Budget vs Actual"
-    )
-
-    fig_budget.update_layout(
-        xaxis_title="Category",
-        yaxis_title=f"Amount ({currency_symbol.strip()})",
-        margin=dict(
-            t=50,
-            b=20,
-            l=20,
-            r=20
-        )
-    )
-
-    st.plotly_chart(
-        fig_budget,
-        use_container_width=True
-    )
-
-
-# =========================================================
 # RECENT TRANSACTIONS
 # =========================================================
 st.divider()
