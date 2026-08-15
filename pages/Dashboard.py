@@ -292,12 +292,7 @@ elif period_option == "Full Year":
     period_label = f"Full Year — {today.year}"
 
 else:
-    selected_month = st.date_input(
-        "Select Month",
-        value=today.replace(day=1),
-        key="dashboard_month"
-    )
-    period_start = selected_month.replace(day=1)
+    period_start = date(today.year, today.month, 1)
 
     if period_start.month == 12:
         period_end = date(period_start.year + 1, 1, 1)
@@ -490,7 +485,8 @@ else:
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
+            config={"displayModeBar": False}
         )
 
 
@@ -544,7 +540,7 @@ if not df.empty:
         monthly_chart_df["month"] = (
             monthly_chart_df["date"]
             .dt.to_period("M")
-            .astype(str)
+            .dt.strftime("%b %Y")
         )
 
         monthly_summary = (
@@ -573,9 +569,22 @@ if not df.empty:
             title="Monthly Income vs Expense"
         )
 
+        fig_monthly.update_traces(
+            hovertemplate="Month: %{x}<br>Amount: %{y:,.2f}<extra></extra>"
+        )
+
         fig_monthly.update_layout(
             xaxis_title="Month",
             yaxis_title=f"Amount ({currency_symbol.strip()})",
+            xaxis=dict(
+                type="category",
+                categoryorder="array",
+                categoryarray=(
+                    monthly_chart_df["month"]
+                    .drop_duplicates()
+                    .tolist()
+                )
+            ),
             margin=dict(
                 t=50,
                 b=20,
@@ -586,7 +595,8 @@ if not df.empty:
 
         st.plotly_chart(
             fig_monthly,
-            use_container_width=True
+            use_container_width=True,
+            config={"displayModeBar": False}
         )
 
     else:
@@ -603,7 +613,58 @@ else:
 
 
 # =========================================================
-#
+if not budget_summary.empty:
+
+    st.divider()
+
+    st.subheader(
+        "📊 Budget vs Actual by Category"
+    )
+
+    budget_chart_df = budget_summary[
+        [
+            "Category",
+            "Budget",
+            "Actual"
+        ]
+    ].copy()
+
+    budget_chart_df = budget_chart_df.melt(
+        id_vars=["Category"],
+        value_vars=[
+            "Budget",
+            "Actual"
+        ],
+        var_name="Type",
+        value_name="Amount"
+    )
+
+    fig_budget = px.bar(
+        budget_chart_df,
+        x="Category",
+        y="Amount",
+        color="Type",
+        barmode="group",
+        title="Budget vs Actual"
+    )
+
+    fig_budget.update_layout(
+        xaxis_title="Category",
+        yaxis_title=f"Amount ({currency_symbol.strip()})",
+        margin=dict(
+            t=50,
+            b=20,
+            l=20,
+            r=20
+        )
+    )
+
+    st.plotly_chart(
+        fig_budget,
+        use_container_width=True
+    )
+
+
 # =========================================================
 # RECENT TRANSACTIONS
 # =========================================================
