@@ -68,7 +68,6 @@ DEFAULT_EXPENSE_CATEGORIES = [
     "Bills",
     "Chiti",
     "Credit Card",
-    "Festival",
     "Entertainment",
     "Education",
     "Electricity",
@@ -89,8 +88,6 @@ DEFAULT_EXPENSE_CATEGORIES = [
     "Shopping",
     "Subscriptions",
     "Shop",
-    "Toll",
-    "praking",
     "Travel",
     "Transport",
     "Trip",
@@ -329,28 +326,30 @@ st.divider()
 # =========================================================
 st.subheader("➕ Add Transaction")
 
+st.caption("Income and Expense categories are kept separate.")
 
-# Type outside form so category updates immediately.
+# Transaction type
 trans_type = st.selectbox(
     "Type",
     ["Income", "Expense"],
     key="new_transaction_type"
 )
 
-
+# Keep Income Category and Expense Category completely separate.
 if trans_type == "Income":
-    category_options = income_categories
+    income_category = st.selectbox(
+        "Income Category",
+        income_categories,
+        key="new_income_category"
+    )
+    category = income_category
 else:
-    category_options = expense_categories
-
-
-# Category is outside the form so it updates immediately
-# when Income / Expense is changed.
-category = st.selectbox(
-    "Category",
-    category_options,
-    key="new_transaction_category"
-)
+    expense_category = st.selectbox(
+        "Expense Category",
+        expense_categories,
+        key="new_expense_category"
+    )
+    category = expense_category
 
 with st.form("add_transaction_form"):
 
